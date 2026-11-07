@@ -130,7 +130,10 @@ input[type=range] { width: 100%; margin: 10px 0 2px; accent-color: var(--gruen);
 .klein { font-size: 13px; color: var(--leise); }
 footer { font-size: 12px; color: var(--leise); margin-top: 24px; text-align: center; line-height: 1.6; }
 footer a { color: var(--leise); }
-.hilfe { background: var(--gelb-hell); color: var(--text); border-radius: 12px; padding: 10px 12px; font-size: 14px; margin-top: 10px; }
+.hilfe { position: relative; background: var(--gelb-hell); color: var(--text); border-radius: 12px; padding: 10px 40px 10px 12px; font-size: 14px; margin-top: 10px; }
+.hilfe .zu { position: absolute; top: 4px; right: 4px; background: none; color: var(--leise); font-size: 18px; padding: 4px 10px; }
+.hilfe .technik { font-size: 11px; color: var(--leise); margin-top: 6px; word-break: break-word; }
+.hilfe.kurz a { color: var(--blau); margin-left: 4px; }
 .hilfe b { color: var(--gelb); }
 .hilfe p { margin: 6px 0; }
 .hilfe ol { margin: 6px 0; padding-left: 20px; }
@@ -227,7 +230,7 @@ footer a { color: var(--leise); }
 
 <script>
 'use strict';
-const APP_VERSION = '1.2';
+const APP_VERSION = '1.3';
 
 // ---------- Konstanten ----------
 const OH_URL = 'https://cdn.jsdelivr.net/npm/opening_hours@3.15.0/+esm';
@@ -783,7 +786,17 @@ $('#adr-form').addEventListener('submit', async e => {
   }
 });
 
-function zeigeStandortHilfe(ohneFrage) {
+// Beim ersten Mal die ganze Anleitung, danach nur eine Zeile (aufklappbar) – sie soll die Liste nicht wegschieben
+let letzteHilfe = null;
+function zeigeStandortHilfe(ohneFrage, technik = '', voll = false) {
+  letzteHilfe = { ohneFrage, technik };
+  let gesehen = false;
+  try { gesehen = localStorage.getItem('apotheke.gpsHilfe') === '1'; localStorage.setItem('apotheke.gpsHilfe', '1'); } catch (_) {}
+  if (gesehen && !voll) {
+    $('#hilfe').innerHTML = `<div class="hilfe kurz"><b>Standort vom Telefon gesperrt.</b><a href="#" data-aktion="hilfe-auf">Wie freigeben?</a>
+      <button type="button" class="zu" data-aktion="hilfe-zu" aria-label="Ausblenden">✕</button></div>`;
+    return;
+  }
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
   const schritte = ios
     ? `<li>Links in der Safari-Adressleiste auf das Seiten-Symbol tippen → <i>Website-Einstellungen</i> → <i>Standort</i> → <i>Fragen</i> oder <i>Erlauben</i>.</li>
@@ -795,6 +808,8 @@ function zeigeStandortHilfe(ohneFrage) {
     <ol>${schritte}</ol>
     <p>Ohne Freigabe geht es genauso über die Adresse oder nur die PLZ.</p>
     <div class="knoepfe"><button type="button" data-aktion="gps-neu">Nochmal fragen</button><button type="button" class="sek" data-aktion="adresse">Adresse eingeben</button></div>
+    ${technik ? `<div class="technik">Technik: ${esc(technik)}</div>` : ''}
+    <button type="button" class="zu" data-aktion="hilfe-zu" aria-label="Ausblenden">✕</button>
   </div>`;
 }
 
@@ -816,11 +831,15 @@ function holeStandort() {
       for (const p of apos) { delete p._oh; delete p._tag; }
       speichereEinst(); render();
     }
-  }, err => {
+  }, async err => {
     if (err.code === 1) {
       // Kam die Ablehnung schneller, als ein Mensch tippen kann, hat das Telefon gar nicht gefragt
+      const ms = Date.now() - start;
+      // Diagnose: Freigabe-Status der Seite (Safari: „denied" = für diese Seite gesperrt)
+      let stand = 'unbekannt';
+      try { if (navigator.permissions && navigator.permissions.query) stand = (await navigator.permissions.query({ name: 'geolocation' })).state; } catch (_) {}
       $('#status').innerHTML = '';
-      zeigeStandortHilfe(Date.now() - start < 1200);
+      zeigeStandortHilfe(ms < 1200, `Ablehnung nach ${ms} ms · Seiten-Freigabe: ${stand} · „${err.message || '–'}"`);
       return;
     }
     const t = err.code === 3 ? 'Standort hat zu lange gedauert. Nochmal tippen oder Adresse eingeben.'
@@ -863,6 +882,8 @@ document.addEventListener('click', e => {
   const was = a.dataset.aktion;
   if (was === 'neu') { e.preventDefault(); laden(true); }
   else if (was === 'gps-neu') { holeStandort(); }
+  else if (was === 'hilfe-zu') { $('#hilfe').innerHTML = ''; }
+  else if (was === 'hilfe-auf') { e.preventDefault(); if (letzteHilfe) zeigeStandortHilfe(letzteHilfe.ohneFrage, letzteHilfe.technik, true); }
   else if (was === 'adresse') { $('#hilfe').innerHTML = ''; const f = $('#adr'); f.focus(); f.select(); }
   else if (was === 'mehr') { anzahl += SEITE; renderListe(); }
   else if (was === 'notdienst') { e.preventDefault(); S.tab = 'notdienst'; speichereEinst(); renderEinst(); window.scrollTo({ top: $('#reiter').offsetTop - 10, behavior: 'smooth' }); }
