@@ -12,7 +12,12 @@ Eine Datei `index.html` (HTML, CSS, JS), dazu `sw.js`, `manifest.webmanifest`, I
 
 ## Datenquellen (geprüft 07.11.2026)
 
-- Apotheken und Öffnungszeiten: OpenStreetMap über Overpass (`amenity=pharmacy`, `around:`), mit
+- Apotheken und Öffnungszeiten (ab v1.4): vorberechnete Kacheln `daten/<floor(lat*2)>_<floor(lon*2)>.json`
+  (0,5° × 0,5°, 225 Kacheln, Median 8 KB, max. 104 KB) plus `daten/index.json` (Stand, bbox, Kachelliste).
+  Gebaut von `tools/daten_bauen.py`, wöchentlich durch `.github/workflows/daten.yml` (montags, auch von Hand).
+  Gemessen 07.11.: Liste Wettenberg 0,9 s inkl. Adresssuche, Berlin 30 km (844 Apotheken) 0,6 s.
+  Live-Overpass (`around:`) nur noch als Rückfall, wenn der Kreis außerhalb liegt oder Kacheln fehlen.
+- Live-Abfrage: OpenStreetMap über Overpass (`amenity=pharmacy`, `around:`), mit
   Ersatzservern. Deutschland: 17.101 Apotheken, 81,9 % mit `opening_hours`.
   Öffentliche Overpass-Server sind zeitweise überlastet (504, Antwortzeiten 16–45 s am 07.11.): deshalb zwei
   Runden über alle Server und Rückfall auf den zuletzt gespeicherten Stand (`localStorage` `apotheke.daten`),

@@ -1,0 +1,32 @@
+# Holt jede Woche alle Apotheken Deutschlands aus OpenStreetMap und baut die Kacheln unter daten/ neu.
+# Von Hand starten: Reiter „Actions“ → „Apothekendaten aktualisieren“ → „Run workflow“.
+name: Apothekendaten aktualisieren
+on:
+  schedule:
+    - cron: '23 2 * * 1'        # montags 02:23 UTC
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  daten:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Kacheln bauen
+        run: python3 tools/daten_bauen.py
+      - name: Speichern, falls sich etwas geändert hat
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add daten
+          # Nur der Zeitstempel im Index geändert? Dann nichts speichern.
+          if git diff --cached --name-only | grep -qv '^daten/index.json$'; then
+            git commit -m "Apothekendaten aktualisiert"
+            git push
+          else
+            echo "Keine Änderung an den Apotheken."
+          fi
