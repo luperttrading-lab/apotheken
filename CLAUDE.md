@@ -21,6 +21,12 @@ Eine Datei `index.html` (HTML, CSS, JS), dazu `sw.js`, `manifest.webmanifest`, I
   Alle 14.011 deutschen Einträge werden fehlerfrei gelesen; Feiertage nach Bundesland über die
   Nominatim-Adresse (`ISO3166-2-lvl4`).
 - Adresssuche/Rückwärtssuche: Nominatim (max. 1 Anfrage/s, nur auf Absenden).
+  Nominatim hat keine Tippfehler-Toleranz („35435 Wettenebrg“ → nichts). Ab v1.2 Rückfall: ohne Wort nach der
+  PLZ → bis zur PLZ → nur PLZ, je 1,1 s Abstand; ab dem zweiten Versuch nur Treffer mit genau dieser PLZ
+  (sonst fand „Musterweg, 35435“ einen Musterweg in 34302). Gemeinde vor Ortsteil anzeigen.
+- Standort: `getCurrentPosition` direkt im Tipp aufrufen, ohne `await` davor. Ob iOS die Frage zeigt, entscheidet
+  das Telefon (Safari → Website-Einstellungen → Standort bzw. Ortungsdienste → Safari-Websites); eine gesperrte
+  Frage kann keine Webseite erzwingen. Ablehnung in < 1,2 s heißt: Frage wurde gar nicht gezeigt → Hilfekarte.
 - Fahrstrecke/-zeit: OSRM-Tabelle (`router.project-osrm.org`, Ersatz `routing.openstreetmap.de`), 99 Ziele je
   Anfrage, ohne Verkehrslage. Demo-Server, nur für privaten Gebrauch; bei Veröffentlichung eigenen Anbieter.
 - Notdienst: Die tagesaktuellen Daten vertreibt Avoxa im Auftrag der Bundesapothekerkammer nur gegen Lizenz

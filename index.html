@@ -130,6 +130,14 @@ input[type=range] { width: 100%; margin: 10px 0 2px; accent-color: var(--gruen);
 .klein { font-size: 13px; color: var(--leise); }
 footer { font-size: 12px; color: var(--leise); margin-top: 24px; text-align: center; line-height: 1.6; }
 footer a { color: var(--leise); }
+.hilfe { background: var(--gelb-hell); color: var(--text); border-radius: 12px; padding: 10px 12px; font-size: 14px; margin-top: 10px; }
+.hilfe b { color: var(--gelb); }
+.hilfe p { margin: 6px 0; }
+.hilfe ol { margin: 6px 0; padding-left: 20px; }
+.hilfe li { margin: 4px 0; }
+.hilfe .knoepfe { display: flex; gap: 8px; margin-top: 8px; }
+.hilfe .knoepfe button { flex: 1; font-size: 15px; padding: 8px 10px; }
+.ort .hinweis { display: block; font-size: 13px; color: var(--gelb); margin-top: 2px; }
 .fehler { background: var(--rot-hell); color: var(--rot); border-radius: 12px; padding: 10px 12px; font-size: 14px; margin: 8px 0; }
 
 /* Update-Banner: liegt fest über der Seite, schiebt nichts */
@@ -166,6 +174,7 @@ footer a { color: var(--leise); }
     </form>
     <button class="sek gps" id="gps" type="button">📍 Meinen Standort verwenden</button>
     <div class="ort" id="ort"></div>
+    <div id="hilfe"></div>
   </section>
 
   <section class="karte">
@@ -218,7 +227,7 @@ footer a { color: var(--leise); }
 
 <script>
 'use strict';
-const APP_VERSION = '1.1';
+const APP_VERSION = '1.2';
 
 // ---------- Konstanten ----------
 const OH_URL = 'https://cdn.jsdelivr.net/npm/opening_hours@3.15.0/+esm';
@@ -296,18 +305,43 @@ function luftlinie(a, b) {
 function ortAus(n) {
   const a = n.address || {};
   const strasse = [a.road || a.pedestrian || a.square || a.footway || a.path, a.house_number].filter(Boolean).join(' ');
-  const stadt = a.city || a.town || a.village || a.municipality || a.suburb || '';
+  // Gemeinde vor Ortsteil (Postanschrift „35435 Wettenberg", nicht „Wißmar"), aber kein Verwaltungsverbund
+  const gemeinde = a.municipality && !/^(Verbandsgemeinde|Samtgemeinde|Amt|Verwaltungsgemeinschaft|Gemeindeverwaltungsverband)\b/.test(a.municipality) ? a.municipality : '';
+  const stadt = a.city || a.town || gemeinde || a.village || a.suburb || '';
   const label = [strasse, [a.postcode, stadt].filter(Boolean).join(' ')].filter(Boolean).join(', ') || n.display_name;
   return { lat: +n.lat, lon: +n.lon, plz: a.postcode || '', stadt, label, address: a };
 }
 
-async function sucheAdresse(q) {
-  const u = `${NOMINATIM}/search?format=jsonv2&addressdetails=1&limit=1&countrycodes=de&accept-language=de&q=${encodeURIComponent(q)}`;
+async function nominatimSuche(q) {
+  const u = `${NOMINATIM}/search?format=jsonv2&addressdetails=1&limit=5&countrycodes=de&accept-language=de&q=${encodeURIComponent(q)}`;
   const r = await holeMitFrist(u, {}, 15000);
   if (!r.ok) throw new Error('Adresssuche nicht erreichbar (HTTP ' + r.status + ')');
-  const j = await r.json();
-  if (!j.length) throw new Error('Adresse „' + q + '" nicht gefunden.');
-  return ortAus(j[0]);
+  return await r.json();
+}
+// Nominatim kennt keine Tippfehler-Toleranz: „35435 Wettenebrg" findet nichts, „35435" schon.
+// Deshalb der Reihe nach: Eingabe wie getippt -> ohne das Wort nach der PLZ -> nur bis zur PLZ -> nur PLZ.
+async function sucheAdresse(q) {
+  const plz = (q.match(/\b\d{5}\b/) || [])[0];
+  const versuche = [q];
+  if (plz) {
+    versuche.push(q.replace(/(\b\d{5}\b)\s+[^\s,]+/, '$1').trim());
+    versuche.push(q.slice(0, q.indexOf(plz) + 5).trim());
+    versuche.push(plz);
+  }
+  const liste = [...new Set(versuche.map(v => v.replace(/[\s,]+$/, '').trim()).filter(Boolean))];
+  for (let i = 0; i < liste.length; i++) {
+    if (i) await new Promise(ok => setTimeout(ok, 1100));   // Nominatim: höchstens 1 Anfrage je Sekunde
+    const treffer = await nominatimSuche(liste[i]);
+    // Ab dem zweiten Versuch nur Treffer mit genau dieser PLZ: sonst landet „Musterweg, 35435" in einem anderen Ort
+    const n = i === 0 ? treffer[0] : treffer.find(t => t.address && t.address.postcode === plz);
+    if (!n) continue;
+    const o = ortAus(n);
+    if (i) o.hinweis = liste[i] === plz
+      ? 'Straße nicht gefunden – Mitte der PLZ ' + plz + ' verwendet.'
+      : 'Ortsname nicht erkannt – gefunden über Straße und PLZ.';
+    return o;
+  }
+  throw new Error('Adresse „' + q + '" nicht gefunden. Tippfehler? Mit Postleitzahl klappt es meist.');
 }
 
 async function rueckwaerts(lat, lon) {
@@ -556,7 +590,7 @@ function renderEinst() {
   sel.value = S.tagOffset;
   $('#filter-tag').textContent = S.tagOffset === 0 ? 'Heute noch offen' : 'Am ' + WT[plusTage(heute, S.tagOffset).getDay()] + ' offen';
   $('#ort').innerHTML = S.ort
-    ? `${S.ort.gps ? 'Standort' : 'Adresse'}: <b>${esc(S.ort.label)}</b>`
+    ? `${S.ort.gps ? 'Standort' : 'Adresse'}: <b>${esc(S.ort.label)}</b>${S.ort.hinweis ? `<span class="hinweis">${esc(S.ort.hinweis)}</span>` : ''}`
     : 'Noch kein Ort gewählt.';
   $('#liste').hidden = S.tab !== 'liste';
   $('#notdienst').hidden = S.tab !== 'notdienst';
@@ -737,6 +771,7 @@ $('#adr-form').addEventListener('submit', async e => {
   const q = $('#adr').value.trim();
   if (!q) return;
   $('#adr').blur();
+  $('#hilfe').innerHTML = '';
   zeigeStatus('Suche Adresse …', true);
   try {
     S.ort = await sucheAdresse(q);
@@ -748,9 +783,28 @@ $('#adr-form').addEventListener('submit', async e => {
   }
 });
 
-$('#gps').addEventListener('click', () => {
+function zeigeStandortHilfe(ohneFrage) {
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  const schritte = ios
+    ? `<li>Links in der Safari-Adressleiste auf das Seiten-Symbol tippen → <i>Website-Einstellungen</i> → <i>Standort</i> → <i>Fragen</i> oder <i>Erlauben</i>.</li>
+       <li>Ist dort nichts gesperrt: Einstellungen → Datenschutz &amp; Sicherheit → Ortungsdienste → <i>Safari-Websites</i> → <i>Beim Verwenden der App</i>.</li>`
+    : `<li>Auf das Symbol links in der Adressleiste tippen → <i>Berechtigungen</i> → <i>Standort</i> → <i>Zulassen</i>.</li>`;
+  $('#hilfe').innerHTML = `<div class="hilfe">
+    <b>${ohneFrage ? 'Das Telefon hat die Standortfrage gar nicht erst angezeigt.' : 'Der Standortzugriff wurde abgelehnt.'}</b>
+    <p>Die App fragt beim Tippen auf „Meinen Standort verwenden" – ob die Frage erscheint, entscheidet aber das Telefon. Ist sie dort für diese Seite gesperrt, kann keine Webseite sie erneut zeigen. Einmalig freigeben:</p>
+    <ol>${schritte}</ol>
+    <p>Ohne Freigabe geht es genauso über die Adresse oder nur die PLZ.</p>
+    <div class="knoepfe"><button type="button" data-aktion="gps-neu">Nochmal fragen</button><button type="button" class="sek" data-aktion="adresse">Adresse eingeben</button></div>
+  </div>`;
+}
+
+$('#gps').addEventListener('click', holeStandort);
+function holeStandort() {
+  $('#hilfe').innerHTML = '';
   if (!navigator.geolocation) { zeigeStatus('Standort wird von diesem Gerät nicht unterstützt.'); return; }
-  zeigeStatus('Bestimme Standort …', true);
+  zeigeStatus('Bestimme Standort … falls das Telefon fragt: „Erlauben" tippen', true);
+  const start = Date.now();
+  // getCurrentPosition direkt im Tipp aufrufen, ohne vorheriges await – sonst zeigt Safari die Frage womöglich nicht
   navigator.geolocation.getCurrentPosition(async pos => {
     const { latitude: lat, longitude: lon } = pos.coords;
     S.ort = { lat, lon, plz: '', stadt: '', label: 'wird ermittelt …', address: {}, gps: true };
@@ -763,11 +817,17 @@ $('#gps').addEventListener('click', () => {
       speichereEinst(); render();
     }
   }, err => {
-    const t = err.code === 1 ? 'Standortzugriff abgelehnt. In den Einstellungen erlauben oder Adresse eingeben.'
-      : 'Standort nicht ermittelbar. Bitte Adresse eingeben.';
+    if (err.code === 1) {
+      // Kam die Ablehnung schneller, als ein Mensch tippen kann, hat das Telefon gar nicht gefragt
+      $('#status').innerHTML = '';
+      zeigeStandortHilfe(Date.now() - start < 1200);
+      return;
+    }
+    const t = err.code === 3 ? 'Standort hat zu lange gedauert. Nochmal tippen oder Adresse eingeben.'
+      : 'Kein Standortsignal. Bitte Adresse oder PLZ eingeben.';
     $('#status').innerHTML = `<span class="fehler">${esc(t)}</span>`;
-  }, { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 });
-});
+  }, { enableHighAccuracy: false, timeout: 20000, maximumAge: 300000 });
+}
 
 $('#radius').addEventListener('input', e => {
   S.radius = +e.target.value;
@@ -802,6 +862,8 @@ document.addEventListener('click', e => {
   const a = e.target.closest('[data-aktion]'); if (!a) return;
   const was = a.dataset.aktion;
   if (was === 'neu') { e.preventDefault(); laden(true); }
+  else if (was === 'gps-neu') { holeStandort(); }
+  else if (was === 'adresse') { $('#hilfe').innerHTML = ''; const f = $('#adr'); f.focus(); f.select(); }
   else if (was === 'mehr') { anzahl += SEITE; renderListe(); }
   else if (was === 'notdienst') { e.preventDefault(); S.tab = 'notdienst'; speichereEinst(); renderEinst(); window.scrollTo({ top: $('#reiter').offsetTop - 10, behavior: 'smooth' }); }
   else if (was === 'woche') {
