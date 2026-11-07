@@ -14,6 +14,9 @@ Eine Datei `index.html` (HTML, CSS, JS), dazu `sw.js`, `manifest.webmanifest`, I
 
 - Apotheken und Öffnungszeiten: OpenStreetMap über Overpass (`amenity=pharmacy`, `around:`), mit
   Ersatzservern. Deutschland: 17.101 Apotheken, 81,9 % mit `opening_hours`.
+  Öffentliche Overpass-Server sind zeitweise überlastet (504, Antwortzeiten 16–45 s am 07.11.): deshalb zwei
+  Runden über alle Server und Rückfall auf den zuletzt gespeicherten Stand (`localStorage` `apotheke.daten`),
+  wenn er den gesuchten Kreis abdeckt (ab v1.1).
 - Auswertung der Öffnungszeiten: `opening_hours.js` 3.15.0 von jsDelivr (`/+esm`, ~90 KB über die Leitung).
   Alle 14.011 deutschen Einträge werden fehlerfrei gelesen; Feiertage nach Bundesland über die
   Nominatim-Adresse (`ISO3166-2-lvl4`).
