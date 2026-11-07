@@ -1,1 +1,867 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#16804a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Apotheken">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="favicon.png">
+<title>Apotheken in der Nähe</title>
+<style>
+:root {
+  --bg: #f4f6f5; --karte: #fff; --text: #16201b; --leise: #5d6b63; --linie: #dde3df;
+  --gruen: #16804a; --gruen-hell: #e3f4ea; --gelb: #8a5200; --gelb-hell: #fff1d6;
+  --rot: #c8102e; --rot-hell: #fde7ea; --grau-hell: #eceeed; --blau: #0a64c8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1412; --karte: #1a211d; --text: #e8efe9; --leise: #9aa8a0; --linie: #2b3530;
+    --gruen: #3ccf7f; --gruen-hell: #173626; --gelb: #ffc35a; --gelb-hell: #3a2c12;
+    --rot: #ff6b7f; --rot-hell: #3d1a20; --grau-hell: #262e2a; --blau: #6cb0ff;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+header {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 14px 16px 6px;
+}
+h1 { font-size: 26px; margin: 0; letter-spacing: -.3px; }
+h1 span { color: var(--gruen); }
+.ver {
+  background: none; border: 0; color: var(--leise); font: inherit; font-size: 13px; padding: 4px;
+  text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer;
+}
+main { padding: 0 12px 28px; max-width: 720px; margin: 0 auto; }
+.karte {
+  background: var(--karte); border: 1px solid var(--linie); border-radius: 16px;
+  padding: 12px; margin: 10px 0;
+}
+form.adr { display: flex; gap: 8px; }
+input[type=search], select {
+  font: inherit; font-size: 16px; color: var(--text); background: var(--bg);
+  border: 1px solid var(--linie); border-radius: 10px; padding: 10px 12px; min-width: 0;
+}
+input[type=search] { flex: 1; }
+button, .knopf {
+  font: inherit; font-size: 16px; border-radius: 10px; border: 0; cursor: pointer;
+  background: var(--gruen); color: #fff; padding: 10px 14px; text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+@media (prefers-color-scheme: dark) { button, .knopf { color: #06240e; } }
+button.sek, .knopf.sek { background: var(--gruen-hell); color: var(--gruen); }
+.gps { width: 100%; margin-top: 8px; padding: 8px 14px; font-size: 15px; }
+.ort { margin-top: 8px; font-size: 14px; color: var(--leise); }
+.ort b { color: var(--text); font-weight: 600; }
+.zeile { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.zeile label { font-weight: 600; }
+output { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--gruen); }
+input[type=range] { width: 100%; margin: 10px 0 2px; accent-color: var(--gruen); }
+.zeile .seg { flex: none; width: 210px; }
+.seg { display: flex; background: var(--bg); border: 1px solid var(--linie); border-radius: 10px; padding: 3px; gap: 3px; }
+.seg button { flex: 1; background: none; color: var(--text); padding: 6px 6px; font-size: 14px; border-radius: 8px; }
+.seg button.an { background: var(--gruen); color: #fff; }
+@media (prefers-color-scheme: dark) { .seg button.an { color: #06240e; } }
+.zwei { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 8px; }
+.zwei select { width: 100%; padding: 9px 8px; }
+.zwei label { display: flex; flex-direction: column; font-size: 13px; color: var(--leise); gap: 4px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chips button { background: var(--bg); color: var(--text); border: 1px solid var(--linie); padding: 7px 12px; font-size: 15px; border-radius: 999px; }
+.chips button.an { background: var(--gruen); border-color: var(--gruen); color: #fff; }
+@media (prefers-color-scheme: dark) { .chips button.an { color: #06240e; } }
+.haken { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; color: var(--leise); }
+.haken input { width: 18px; height: 18px; accent-color: var(--gruen); }
+.reiter { display: flex; gap: 6px; margin: 14px 0 6px; }
+.reiter button { flex: 1; background: var(--karte); color: var(--text); border: 1px solid var(--linie); font-weight: 600; }
+.reiter button.an { background: var(--text); color: var(--bg); border-color: var(--text); }
+.reiter button.not { color: var(--rot); }
+.reiter button.not.an { background: var(--rot); border-color: var(--rot); color: #fff; }
+.status { font-size: 14px; color: var(--leise); margin: 8px 2px; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.status button { background: none; color: var(--blau); padding: 2px 4px; font-size: 14px; }
+.laed::before { content: ""; display: inline-block; width: 12px; height: 12px; margin-right: 6px; border: 2px solid var(--linie); border-top-color: var(--gruen); border-radius: 50%; animation: dreh .8s linear infinite; vertical-align: -1px; }
+@keyframes dreh { to { transform: rotate(360deg); } }
+.notzeile {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  background: var(--rot-hell); color: var(--rot); border-radius: 12px; padding: 9px 12px; font-size: 14px; font-weight: 600;
+  margin: 6px 0 10px; text-decoration: none;
+}
+.apo { background: var(--karte); border: 1px solid var(--linie); border-radius: 16px; padding: 12px; margin: 8px 0; }
+.apo.zu { opacity: .78; }
+.apo .kopf { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.apo h3 { font-size: 17px; margin: 0; line-height: 1.25; }
+.badge { flex: none; font-size: 13px; font-weight: 600; border-radius: 999px; padding: 4px 9px; white-space: nowrap; }
+.badge.gruen { background: var(--gruen-hell); color: var(--gruen); }
+.badge.gelb { background: var(--gelb-hell); color: var(--gelb); }
+.badge.grau { background: var(--grau-hell); color: var(--leise); }
+.badge.rot { background: var(--rot-hell); color: var(--rot); }
+.apo .dist { font-size: 14px; color: var(--leise); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.apo .dist b { color: var(--text); }
+.apo .adr { font-size: 14px; margin-top: 2px; }
+.apo .zeiten { font-size: 14px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.apo .zeiten b { font-weight: 600; }
+.apo .aktionen { display: flex; gap: 6px; margin-top: 10px; }
+.apo .aktionen > * { flex: 1 1 0; min-width: 0; white-space: nowrap; }
+.apo .aktionen .knopf, .apo .aktionen button { font-size: 14px; padding: 8px 4px; border-radius: 9px; background: var(--gruen-hell); color: var(--gruen); }
+.woche { margin-top: 10px; font-size: 14px; border-top: 1px solid var(--linie); padding-top: 8px; font-variant-numeric: tabular-nums; }
+.woche table { border-collapse: collapse; width: 100%; }
+.woche td { padding: 2px 0; vertical-align: top; }
+.woche td:first-child { width: 6.2em; color: var(--leise); }
+.woche tr.gewaehlt td { font-weight: 700; color: var(--text); }
+.woche .roh { color: var(--leise); font-size: 12px; margin-top: 6px; word-break: break-word; }
+.woche a { color: var(--blau); }
+.abschnitt { font-size: 14px; font-weight: 700; color: var(--leise); margin: 18px 4px 4px; text-transform: uppercase; letter-spacing: .4px; }
+.leer { text-align: center; color: var(--leise); padding: 22px 10px; }
+.mehr { width: 100%; margin-top: 6px; }
+.notdienst h2 { margin: 0 0 6px; font-size: 20px; color: var(--rot); }
+.notdienst p { margin: 8px 0; font-size: 15px; }
+.notdienst .knopf { width: 100%; margin: 6px 0; }
+.knopf.rot { background: var(--rot); color: #fff; font-weight: 600; }
+.knopf.rot-hell { background: var(--rot-hell); color: var(--rot); }
+.klein { font-size: 13px; color: var(--leise); }
+footer { font-size: 12px; color: var(--leise); margin-top: 24px; text-align: center; line-height: 1.6; }
+footer a { color: var(--leise); }
+.fehler { background: var(--rot-hell); color: var(--rot); border-radius: 12px; padding: 10px 12px; font-size: 14px; margin: 8px 0; }
 
+/* Update-Banner: liegt fest über der Seite, schiebt nichts */
+.update {
+  position: fixed; left: 12px; right: 12px; top: max(env(safe-area-inset-top), 12px); z-index: 30;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: #34c759; color: #06240e;
+  padding: 12px 14px; border-radius: 14px; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  opacity: 0; transition: opacity .35s ease; pointer-events: none;
+}
+.update.an { opacity: 1; pointer-events: auto; }
+.update[hidden] { display: none; }
+.update.info { background: #2d2d33; color: #f2f2f7; font-weight: 500; }
+.update.unten { top: auto; bottom: max(env(safe-area-inset-bottom), 12px); }
+.update .btn { width: auto; padding: 8px 14px; font-size: 15px; background: #06240e; color: #fff; }
+</style>
+</head>
+<body>
+<div class="update" id="update" hidden>
+  <span id="update-text"></span>
+  <button class="btn" id="update-go">Jetzt laden</button>
+</div>
+
+<header>
+  <h1>Apotheken <span>in der Nähe</span></h1>
+  <button class="ver" id="version" type="button" aria-label="Nach neuer Version suchen"></button>
+</header>
+
+<main>
+  <section class="karte">
+    <form class="adr" id="adr-form">
+      <input type="search" id="adr" placeholder="Adresse oder PLZ" autocomplete="street-address" enterkeyhint="search" aria-label="Adresse oder PLZ">
+      <button type="submit">Suchen</button>
+    </form>
+    <button class="sek gps" id="gps" type="button">📍 Meinen Standort verwenden</button>
+    <div class="ort" id="ort"></div>
+  </section>
+
+  <section class="karte">
+    <div class="zeile">
+      <label for="radius">Umkreis <output id="radius-wert"></output></label>
+      <div class="seg" id="modus">
+        <button type="button" data-v="luft">Luftlinie</button>
+        <button type="button" data-v="fahrt">Fahrstrecke</button>
+      </div>
+    </div>
+    <input type="range" id="radius" min="1" max="30" step="1" value="5">
+    <div class="zwei">
+      <label>Tag<select id="tag"></select></label>
+      <label>Sortierung
+        <select id="sort">
+          <option value="empfohlen">Empfohlen</option>
+          <option value="entfernung">Entfernung</option>
+          <option value="fahrzeit">Fahrzeit (Auto)</option>
+          <option value="schliesst">Schließt zuletzt</option>
+          <option value="oeffnet">Öffnet zuerst</option>
+          <option value="naechste">Nächste Öffnung ab jetzt</option>
+          <option value="name">Name A–Z</option>
+        </select>
+      </label>
+    </div>
+    <div class="chips" id="filter">
+      <button type="button" data-v="alle">Alle</button>
+      <button type="button" data-v="jetzt">Jetzt offen</button>
+      <button type="button" data-v="tag" id="filter-tag">Heute noch offen</button>
+    </div>
+    <label class="haken"><input type="checkbox" id="unbekannt"> Auch Apotheken ohne Öffnungszeiten zeigen</label>
+  </section>
+
+  <nav class="reiter" id="reiter">
+    <button type="button" data-tab="liste" id="reiter-liste">Apotheken</button>
+    <button type="button" data-tab="notdienst" class="not">Notdienst</button>
+  </nav>
+
+  <div class="status" id="status"></div>
+  <section id="liste"></section>
+  <section id="notdienst" hidden></section>
+
+  <footer>
+    Apotheken &amp; Öffnungszeiten: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende (ODbL)<br>
+    Adresssuche: Nominatim · Fahrstrecken: OSRM (ohne Verkehrslage)<br>
+    Notdienst: <a href="https://www.aponet.de" target="_blank" rel="noopener">aponet.de</a><br>
+    Angaben ohne Gewähr – im Zweifel anrufen.
+  </footer>
+</main>
+
+<script>
+'use strict';
+const APP_VERSION = '1.0';
+
+// ---------- Konstanten ----------
+const OH_URL = 'https://cdn.jsdelivr.net/npm/opening_hours@3.15.0/+esm';
+const OVERPASS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter'
+];
+const OSRM = ['https://router.project-osrm.org', 'https://routing.openstreetmap.de/routed-car'];
+const NOMINATIM = 'https://nominatim.openstreetmap.org';
+const EINST_KEY = 'apotheke.einst';
+const WT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+const MAX_FAHRT = 400;        // höchstens so viele Apotheken per Fahrstrecke berechnen
+const SEITE = 120;            // Karten pro „Weitere anzeigen"
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// ---------- Zustand ----------
+const S = Object.assign(
+  { ort: null, radius: 5, modus: 'luft', sort: 'empfohlen', filter: 'alle', unbekannt: true, tab: 'liste' },
+  ladeEinst()
+);
+S.tagOffset = 0;              // startet immer mit „Heute"
+let apos = [];                // aufbereitete Apotheken der letzten Abfrage
+let geladen = null;           // { lat, lon, radius, zeit } der letzten Overpass-Abfrage
+let fahrtFuer = null;         // === geladen, wenn Fahrstrecken dafür berechnet sind
+let fahrtFehler = false;
+let OH = null;                // Konstruktor aus opening_hours.js
+let ohFehler = false;
+let lauf = 0;                 // Zähler gegen überholte Antworten
+let anzahl = SEITE;
+let laedt = false;
+
+function ladeEinst() {
+  try { return JSON.parse(localStorage.getItem(EINST_KEY)) || {}; } catch (_) { return {}; }
+}
+function speichereEinst() {
+  const { ort, radius, modus, sort, filter, unbekannt, tab } = S;
+  try { localStorage.setItem(EINST_KEY, JSON.stringify({ ort, radius, modus, sort, filter, unbekannt, tab })); } catch (_) {}
+}
+
+// ---------- Hilfen: Zeit ----------
+const tagAnfang = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const plusTage = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const hhmm = d => String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+const datumKurz = d => `${WT[d.getDay()]} ${d.getDate()}.${d.getMonth() + 1}.`;
+function zeitText(d, now) {
+  const tage = Math.round((tagAnfang(d) - tagAnfang(now)) / 864e5);
+  if (tage === 0) return hhmm(d);
+  if (tage === 1) return 'morgen ' + hhmm(d);
+  if (tage < 7) return WT[d.getDay()] + ' ' + hhmm(d);
+  return d.getDate() + '.' + (d.getMonth() + 1) + '. ' + hhmm(d);
+}
+const kmText = m => m < 1000 ? Math.round(m / 10) * 10 + ' m' : (m / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1, minimumFractionDigits: 1 }) + ' km';
+const minText = s => s < 3600 ? Math.max(1, Math.round(s / 60)) + ' min' : Math.floor(s / 3600) + ' h ' + Math.round((s % 3600) / 60) + ' min';
+
+// ---------- Netz ----------
+async function holeMitFrist(url, opts = {}, ms = 20000) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  try { return await fetch(url, { ...opts, signal: ctl.signal }); }
+  finally { clearTimeout(t); }
+}
+
+function luftlinie(a, b) {
+  const R = 6371008.8, r = x => x * Math.PI / 180;
+  const dLat = r(b.lat - a.lat), dLon = r(b.lon - a.lon);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+function ortAus(n) {
+  const a = n.address || {};
+  const strasse = [a.road || a.pedestrian || a.square || a.footway || a.path, a.house_number].filter(Boolean).join(' ');
+  const stadt = a.city || a.town || a.village || a.municipality || a.suburb || '';
+  const label = [strasse, [a.postcode, stadt].filter(Boolean).join(' ')].filter(Boolean).join(', ') || n.display_name;
+  return { lat: +n.lat, lon: +n.lon, plz: a.postcode || '', stadt, label, address: a };
+}
+
+async function sucheAdresse(q) {
+  const u = `${NOMINATIM}/search?format=jsonv2&addressdetails=1&limit=1&countrycodes=de&accept-language=de&q=${encodeURIComponent(q)}`;
+  const r = await holeMitFrist(u, {}, 15000);
+  if (!r.ok) throw new Error('Adresssuche nicht erreichbar (HTTP ' + r.status + ')');
+  const j = await r.json();
+  if (!j.length) throw new Error('Adresse „' + q + '" nicht gefunden.');
+  return ortAus(j[0]);
+}
+
+async function rueckwaerts(lat, lon) {
+  try {
+    const u = `${NOMINATIM}/reverse?format=jsonv2&addressdetails=1&zoom=18&accept-language=de&lat=${lat}&lon=${lon}`;
+    const r = await holeMitFrist(u, {}, 15000);
+    const j = await r.json();
+    if (j && j.address) { const o = ortAus(j); o.lat = lat; o.lon = lon; o.gps = true; return o; }
+  } catch (_) {}
+  return { lat, lon, plz: '', stadt: '', label: lat.toFixed(4) + ', ' + lon.toFixed(4), address: {}, gps: true };
+}
+
+async function holeApotheken(lat, lon, radius) {
+  const q = `[out:json][timeout:25];nwr["amenity"="pharmacy"](around:${Math.round(radius)},${lat},${lon});out center tags;`;
+  let fehler;
+  for (const ep of OVERPASS) {
+    try {
+      const r = await holeMitFrist(ep, { method: 'POST', body: new URLSearchParams({ data: q }) }, 25000);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return (await r.json()).elements || [];
+    } catch (e) { fehler = e; }
+  }
+  throw new Error('Apothekendaten nicht erreichbar (' + (fehler && fehler.message || 'Netz') + ').');
+}
+
+function aufbereiten(els, ort) {
+  const liste = [];
+  for (const el of els) {
+    const t = el.tags || {};
+    const lat = el.lat ?? el.center?.lat, lon = el.lon ?? el.center?.lon;
+    if (lat == null || lon == null) continue;
+    const strasse = [t['addr:street'] || t['addr:place'], t['addr:housenumber']].filter(Boolean).join(' ');
+    const ortTeil = [t['addr:postcode'], t['addr:city']].filter(Boolean).join(' ');
+    let web = t.website || t['contact:website'] || t.url || '';
+    if (web && !/^https?:\/\//i.test(web)) web = 'https://' + web;
+    const tel = (t.phone || t['contact:phone'] || t['contact:mobile'] || '').split(';')[0].trim();
+    liste.push({
+      id: el.type + '/' + el.id, lat, lon,
+      name: t.name || t.brand || 'Apotheke (ohne Namen)',
+      adresse: [strasse, ortTeil].filter(Boolean).join(', '),
+      tel, web, ohText: (t.opening_hours || '').trim(),
+      luft: luftlinie(ort, { lat, lon }), fahrtM: null, fahrtS: null
+    });
+  }
+  // Doppelte (Punkt und Gebäude derselben Apotheke) zusammenlegen
+  liste.sort((a, b) => a.luft - b.luft);
+  const raus = new Set();
+  for (let i = 0; i < liste.length; i++) {
+    if (raus.has(i)) continue;
+    for (let k = i + 1; k < liste.length && liste[k].luft - liste[i].luft < 80; k++) {
+      if (!raus.has(k) && liste[k].name.toLowerCase() === liste[i].name.toLowerCase() && luftlinie(liste[i], liste[k]) < 80) {
+        const a = liste[i], b = liste[k];
+        a.ohText ||= b.ohText; a.tel ||= b.tel; a.web ||= b.web; a.adresse ||= b.adresse;
+        raus.add(k);
+      }
+    }
+  }
+  return liste.filter((_, i) => !raus.has(i));
+}
+
+async function berechneFahrt(meinLauf) {
+  fahrtFehler = false;
+  const ziele = apos.filter(p => p.luft <= geladen.radius).sort((a, b) => a.luft - b.luft).slice(0, MAX_FAHRT);
+  for (const p of apos) { p.fahrtM = null; p.fahrtS = null; }
+  const pkt = p => p.lon.toFixed(6) + ',' + p.lat.toFixed(6);
+  for (let i = 0; i < ziele.length; i += 99) {
+    const teil = ziele.slice(i, i + 99);
+    const pfad = '/table/v1/driving/' + [S.ort, ...teil].map(pkt).join(';') + '?sources=0&annotations=distance,duration';
+    let ok = false;
+    for (const base of OSRM) {
+      try {
+        const r = await holeMitFrist(base + pfad, {}, 20000);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const j = await r.json();
+        if (j.code !== 'Ok') throw new Error(j.code);
+        teil.forEach((p, k) => { p.fahrtM = j.distances?.[0]?.[k + 1] ?? null; p.fahrtS = j.durations?.[0]?.[k + 1] ?? null; });
+        ok = true; break;
+      } catch (_) {}
+    }
+    if (meinLauf !== lauf) return;
+    if (!ok) { fahrtFehler = true; return; }
+  }
+  fahrtFuer = geladen;
+}
+
+async function ladeOH() {
+  if (OH) return OH;
+  try { OH = (await import(OH_URL)).default; ohFehler = false; }
+  catch (_) { ohFehler = true; }
+  return OH;
+}
+
+// ---------- Öffnungszeiten ----------
+function nomObj() {
+  return { lat: S.ort.lat, lon: S.ort.lon, address: Object.assign({ country_code: 'de' }, S.ort.address || {}) };
+}
+function ohVon(p) {
+  if (!OH || !p.ohText) return null;
+  if (p._oh !== undefined) return p._oh;
+  try { p._oh = new OH(p.ohText, nomObj(), { mode: 0, tag_key: 'opening_hours', locale: 'de' }); }
+  catch (_) { p._oh = null; }
+  return p._oh;
+}
+function tagInfo(p, D0) {
+  const oh = ohVon(p);
+  if (!oh) return null;
+  p._tag ||= {};
+  const key = D0.getTime();
+  if (p._tag[key]) return p._tag[key];
+  const D1 = plusTage(D0, 1), D2 = plusTage(D0, 2);
+  let roh;
+  try { roh = oh.getOpenIntervals(D0, D2); } catch (_) { return null; }
+  const iv = [];
+  for (const [von, bis, unsicher, kommentar] of roh) {
+    if (von >= D1) continue;
+    const l = iv[iv.length - 1];
+    if (l && von <= l.bis) { if (bis > l.bis) l.bis = bis; }
+    else iv.push({ von, bis, unsicher: !!unsicher, kommentar });
+  }
+  const info = {
+    iv, D0, D1, D2,
+    offen: iv.length > 0,
+    erst: iv.length ? iv[0].von : null,
+    letzt: iv.length ? iv.reduce((m, x) => x.bis > m ? x.bis : m, iv[0].bis) : null,
+    rund: iv.length === 1 && iv[0].von <= D0 && iv[0].bis >= D2
+  };
+  p._tag[key] = info;
+  return info;
+}
+function tagText(t) {
+  if (!t) return '';
+  if (t.rund) return 'rund um die Uhr';
+  if (!t.iv.length) return 'geschlossen';
+  return t.iv.map(x => {
+    const bis = x.bis >= t.D2 ? 'open end' : hhmm(x.bis) + (x.bis > t.D1 ? ' (Folgetag)' : '');
+    return hhmm(x.von) + '–' + bis + (x.unsicher ? ' (?)' : '') + (x.kommentar ? ' „' + x.kommentar + '"' : '');
+  }).join(', ');
+}
+function jetztInfo(p, now) {
+  const oh = ohVon(p);
+  if (!oh) return null;
+  try { return { offen: oh.getState(now), naechste: oh.getNextChange(now) || null, unsicher: oh.getUnknown(now) }; }
+  catch (_) { return null; }
+}
+function badge(j, now) {
+  if (!j) return ['grau', 'Zeiten unbekannt'];
+  if (j.offen) {
+    if (!j.naechste) return ['gruen', 'Durchgehend offen'];
+    const min = (j.naechste - now) / 6e4;
+    if (min <= 30) return ['gelb', 'Schließt in ' + Math.max(1, Math.round(min)) + ' min'];
+    return ['gruen', 'Offen bis ' + zeitText(j.naechste, now)];
+  }
+  if (j.unsicher) return ['gelb', 'Unklar – anrufen'];
+  if (!j.naechste) return ['grau', 'Geschlossen'];
+  return ['rot', 'Öffnet ' + zeitText(j.naechste, now)];
+}
+
+// ---------- Laden ----------
+async function laden(neu = false) {
+  if (!S.ort) { render(); return; }
+  const meinLauf = ++lauf;
+  const R = S.radius * 1000;
+  laedt = true;
+  try {
+    if (neu || !geladen || geladen.lat !== S.ort.lat || geladen.lon !== S.ort.lon || geladen.radius < R) {
+      zeigeStatus('Suche Apotheken …', true);
+      const [els] = await Promise.all([holeApotheken(S.ort.lat, S.ort.lon, R), ladeOH()]);
+      if (meinLauf !== lauf) return;
+      apos = aufbereiten(els, S.ort);
+      geladen = { lat: S.ort.lat, lon: S.ort.lon, radius: R, zeit: new Date() };
+      fahrtFuer = null; anzahl = SEITE;
+    }
+    if (S.modus === 'fahrt' && fahrtFuer !== geladen) {
+      zeigeStatus('Berechne Fahrstrecken …', true);
+      await berechneFahrt(meinLauf);
+      if (meinLauf !== lauf) return;
+    }
+    laedt = false;
+    render();
+  } catch (e) {
+    if (meinLauf !== lauf) return;
+    laedt = false;
+    render();
+    $('#status').innerHTML = `<span class="fehler">${esc(e.message)}</span><button type="button" data-aktion="neu">Nochmal</button>`;
+  }
+}
+
+// ---------- Darstellung ----------
+function zeigeStatus(text, dreht) {
+  $('#status').innerHTML = `<span class="${dreht ? 'laed' : ''}">${esc(text)}</span>`;
+}
+
+function renderEinst() {
+  $('#radius').value = S.radius;
+  $('#radius-wert').textContent = S.radius + ' km';
+  document.querySelectorAll('#modus button').forEach(b => b.classList.toggle('an', b.dataset.v === S.modus));
+  document.querySelectorAll('#filter button').forEach(b => b.classList.toggle('an', b.dataset.v === S.filter));
+  document.querySelectorAll('#reiter button').forEach(b => b.classList.toggle('an', b.dataset.tab === S.tab));
+  $('#sort').value = S.sort;
+  $('#unbekannt').checked = S.unbekannt;
+  const now = new Date(), heute = tagAnfang(now), sel = $('#tag');
+  sel.innerHTML = Array.from({ length: 7 }, (_, i) => {
+    const d = plusTage(heute, i);
+    const name = i === 0 ? 'Heute' : i === 1 ? 'Morgen' : WT[d.getDay()];
+    return `<option value="${i}">${name} (${datumKurz(d)})</option>`;
+  }).join('');
+  sel.value = S.tagOffset;
+  $('#filter-tag').textContent = S.tagOffset === 0 ? 'Heute noch offen' : 'Am ' + WT[plusTage(heute, S.tagOffset).getDay()] + ' offen';
+  $('#ort').innerHTML = S.ort
+    ? `${S.ort.gps ? 'Standort' : 'Adresse'}: <b>${esc(S.ort.label)}</b>`
+    : 'Noch kein Ort gewählt.';
+  $('#liste').hidden = S.tab !== 'liste';
+  $('#notdienst').hidden = S.tab !== 'notdienst';
+}
+
+function render() {
+  renderEinst();
+  renderNotdienst();
+  renderListe();
+}
+
+function aponetLink() {
+  if (S.ort && S.ort.plz) return 'https://www.aponet.de/notdienstsuche/' + encodeURIComponent(S.ort.plz);
+  return 'https://www.aponet.de/apotheke/notdienstsuche';
+}
+
+function distText(p, fahrt) {
+  const luft = `<b>${kmText(p.luft)}</b> Luftlinie`;
+  if (fahrt && p.fahrtM != null) return `<b>${kmText(p.fahrtM)}</b> Fahrt · <b>${minText(p.fahrtS)}</b> Auto · ${kmText(p.luft)} Luftlinie`;
+  return luft;
+}
+
+function routeLink(p) {
+  const ios = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
+  return ios
+    ? `https://maps.apple.com/?daddr=${p.lat},${p.lon}&dirflg=d`
+    : `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}`;
+}
+
+function karte(p, now, D0, fahrt) {
+  const j = p._j, t = p._t;
+  const [farbe, text] = badge(j, now);
+  const zu = j && !j.offen;
+  const tagName = S.tagOffset === 0 ? 'Heute' : datumKurz(D0);
+  const zeiten = t ? `<div class="zeiten"><b>${esc(tagName)}:</b> ${esc(tagText(t))}</div>`
+    : p.ohText ? `<div class="zeiten klein">Öffnungszeiten: ${esc(p.ohText)}</div>`
+    : `<div class="zeiten klein">Keine Öffnungszeiten hinterlegt – bitte anrufen.</div>`;
+  const tel = p.tel ? `<a class="knopf" href="tel:${esc(p.tel.replace(/[^\d+]/g, ''))}">Anrufen</a>` : '';
+  const web = p.web ? `<a class="knopf" href="${esc(p.web)}" target="_blank" rel="noopener">Website</a>` : '';
+  return `<article class="apo${zu ? ' zu' : ''}" data-id="${esc(p.id)}">
+    <div class="kopf"><h3>${esc(p.name)}</h3><span class="badge ${farbe}">${esc(text)}</span></div>
+    <div class="dist">${distText(p, fahrt)}</div>
+    ${p.adresse ? `<div class="adr">${esc(p.adresse)}</div>` : ''}
+    ${zeiten}
+    <div class="aktionen">${tel}<a class="knopf" href="${routeLink(p)}" target="_blank" rel="noopener">Route</a>${web}<button type="button" data-aktion="woche">Woche ▾</button></div>
+    <div class="woche" hidden></div>
+  </article>`;
+}
+
+function wochenplan(p) {
+  const now = new Date(), heute = tagAnfang(now);
+  const sel = plusTage(heute, S.tagOffset).getTime();
+  let zeilen = '';
+  if (ohVon(p)) {
+    for (let i = 0; i < 7; i++) {
+      const d = plusTage(heute, i), t = tagInfo(p, d);
+      zeilen += `<tr class="${d.getTime() === sel ? 'gewaehlt' : ''}"><td>${esc(datumKurz(d))}</td><td>${esc(tagText(t) || '–')}</td></tr>`;
+    }
+  }
+  const roh = p.ohText ? `<div class="roh">Eintrag in OpenStreetMap: ${esc(p.ohText)}</div>` : '';
+  return `${zeilen ? `<table>${zeilen}</table>` : '<div class="klein">Keine auswertbaren Öffnungszeiten.</div>'}${roh}
+    <div class="roh"><a href="https://www.openstreetmap.org/${esc(p.id)}" target="_blank" rel="noopener">Angaben falsch? In OpenStreetMap ansehen</a></div>`;
+}
+
+function sortiere(liste, now, heute, fahrt) {
+  const dist = p => (fahrt && p.fahrtM != null) ? p.fahrtM : p.luft;
+  const nachDist = (a, b) => dist(a) - dist(b);
+  const INF = Number.POSITIVE_INFINITY;
+  let key;
+  switch (S.sort) {
+    case 'name':
+      return liste.sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }) || nachDist(a, b));
+    case 'entfernung':
+      return liste.sort(nachDist);
+    case 'fahrzeit':
+      return liste.sort((a, b) => ((a.fahrtS ?? INF) - (b.fahrtS ?? INF)) || nachDist(a, b));
+    case 'oeffnet':
+      key = p => p._t && p._t.erst ? p._t.erst.getTime() : INF; break;
+    case 'schliesst':
+      key = p => p._t && p._t.letzt ? -p._t.letzt.getTime() : INF; break;
+    case 'naechste':
+      key = p => !p._j ? INF : p._j.offen ? -(p._j.naechste ? p._j.naechste.getTime() : 8.64e15) / 1e16 : p._j.naechste ? p._j.naechste - now : INF; break;
+    default: // empfohlen
+      key = p => {
+        if (heute) {
+          const j = p._j;
+          if (!j) return 4;
+          if (j.offen) return (j.naechste && j.naechste - now < 15 * 6e4) ? 1 : 0;
+          return p._t && p._t.iv.some(x => x.von > now) ? 2 : 3;
+        }
+        return p._t ? (p._t.offen ? 0 : 3) : 4;
+      };
+  }
+  return liste.sort((a, b) => {
+    const ka = key(a), kb = key(b);
+    if (ka !== kb) return ka === INF ? 1 : kb === INF ? -1 : ka - kb;
+    return nachDist(a, b);
+  });
+}
+
+function renderListe() {
+  const box = $('#liste');
+  const reiterListe = $('#reiter-liste');
+  if (!S.ort) {
+    reiterListe.textContent = 'Apotheken';
+    box.innerHTML = `<div class="leer">Adresse oder PLZ eingeben<br>oder „Meinen Standort verwenden" antippen.</div>`;
+    if (!laedt) $('#status').innerHTML = '';
+    return;
+  }
+  if (!geladen) { box.innerHTML = ''; return; }
+  const now = new Date(), heute = S.tagOffset === 0;
+  const D0 = plusTage(tagAnfang(now), S.tagOffset);
+  const R = S.radius * 1000;
+  const fahrt = S.modus === 'fahrt' && fahrtFuer === geladen && !fahrtFehler;
+  const imUmkreis = apos.filter(p => fahrt ? (p.fahrtM != null && p.fahrtM <= R) : p.luft <= R);
+  for (const p of imUmkreis) { p._j = jetztInfo(p, now); p._t = tagInfo(p, D0); }
+  const bekannt = imUmkreis.filter(p => p._j);
+  const unbekannt = imUmkreis.filter(p => !p._j);
+  const offenJetzt = bekannt.filter(p => p._j.offen).length;
+
+  let treffer = bekannt;
+  if (S.filter === 'jetzt') treffer = bekannt.filter(p => p._j.offen);
+  if (S.filter === 'tag') treffer = bekannt.filter(p => p._t && (heute ? p._t.iv.some(x => x.bis > now) : p._t.offen));
+  sortiere(treffer, now, heute, fahrt);
+  const rest = S.unbekannt ? sortiere(unbekannt.slice(), now, heute, fahrt) : [];
+
+  reiterListe.textContent = `Apotheken (${imUmkreis.length})`;
+  const art = fahrt ? 'Fahrstrecke' : 'Luftlinie';
+  let hinweis = '';
+  if (S.modus === 'fahrt' && fahrtFehler) hinweis = ' · Fahrstrecken-Dienst nicht erreichbar, zeige Luftlinie';
+  if (!laedt) {
+    $('#status').innerHTML = `<span>${imUmkreis.length} im Umkreis von ${S.radius} km (${art}) · ${offenJetzt} jetzt offen${esc(hinweis)}</span>` +
+      `<button type="button" data-aktion="neu">Aktualisieren</button>`;
+  }
+
+  let html = `<a class="notzeile" href="#" data-aktion="notdienst"><span>🌙 Notdienst-Apotheken heute</span><span>›</span></a>`;
+  if (ohFehler) html += `<div class="fehler">Die Auswertung der Öffnungszeiten konnte nicht geladen werden (offline?). Es werden nur die Rohangaben gezeigt.</div>`;
+  const alle = treffer.concat(rest);
+  if (!treffer.length) {
+    html += `<div class="leer">${S.filter === 'alle' ? 'Keine Apotheke mit Öffnungszeiten im Umkreis.' : 'Keine passende Apotheke offen.'}<br>Umkreis vergrößern oder den <a href="#" data-aktion="notdienst">Notdienst</a> suchen.</div>`;
+  }
+  const zeige = alle.slice(0, anzahl);
+  zeige.forEach((p, i) => {
+    if (i === treffer.length && rest.length) html += `<div class="abschnitt">Ohne Öffnungszeiten-Angabe (${rest.length})</div>`;
+    html += karte(p, now, D0, fahrt);
+  });
+  if (alle.length > anzahl) html += `<button type="button" class="sek mehr" data-aktion="mehr">Weitere ${Math.min(SEITE, alle.length - anzahl)} anzeigen (${alle.length - anzahl} übrig)</button>`;
+  if (!S.unbekannt && unbekannt.length) html += `<div class="klein" style="text-align:center;margin-top:10px">${unbekannt.length} Apotheken ohne Öffnungszeiten-Angabe ausgeblendet.</div>`;
+  box.innerHTML = html;
+}
+
+function renderNotdienst() {
+  const box = $('#notdienst');
+  const ortText = S.ort ? (S.ort.plz ? S.ort.plz + ' ' + (S.ort.stadt || '') : S.ort.label) : '';
+  const now = new Date();
+  let rund = [];
+  if (geladen && OH) {
+    const R = S.radius * 1000;
+    rund = apos.filter(p => p.luft <= R && ohVon(p) && tagInfo(p, tagAnfang(now))?.rund).sort((a, b) => a.luft - b.luft);
+  }
+  box.innerHTML = `
+    <div class="karte notdienst">
+      <h2>🌙 Notdienst</h2>
+      <p>Welche Apotheke heute Notdienst hat, wechselt täglich und wird von den Apothekerkammern festgelegt. Diese Daten gibt die Bundesapothekerkammer nur gegen Lizenz ab – deshalb öffnet die App die offizielle Notdienstsuche, statt die Apotheken selbst zu markieren.</p>
+      <a class="knopf rot" href="${aponetLink()}" target="_blank" rel="noopener">Notdienst ${ortText ? 'für ' + esc(ortText.trim()) + ' ' : ''}anzeigen</a>
+      <div class="klein">Offizielle Notdienstsuche auf aponet.de (Bundesapothekerkammer / ABDA)</div>
+      <a class="knopf rot-hell" href="tel:08000022833">📞 0800 00 22833 – Festnetz, kostenlos</a>
+      <a class="knopf rot-hell" href="tel:22833">📱 22833 – vom Handy (max. 69 ct/Min.)</a>
+      <p class="klein">Im Notdienst kann die Apotheke eine Notdienstgebühr von 2,50 € berechnen.</p>
+    </div>
+    ${rund.length ? `<div class="abschnitt">Laut Angabe rund um die Uhr geöffnet (${rund.length})</div>` + rund.map(p => karte(p, now, tagAnfang(now), false)).join('') : ''}`;
+}
+
+// ---------- Ereignisse ----------
+$('#adr-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const q = $('#adr').value.trim();
+  if (!q) return;
+  $('#adr').blur();
+  zeigeStatus('Suche Adresse …', true);
+  try {
+    S.ort = await sucheAdresse(q);
+    speichereEinst();
+    renderEinst();
+    laden(true);
+  } catch (err) {
+    $('#status').innerHTML = `<span class="fehler">${esc(err.message)}</span>`;
+  }
+});
+
+$('#gps').addEventListener('click', () => {
+  if (!navigator.geolocation) { zeigeStatus('Standort wird von diesem Gerät nicht unterstützt.'); return; }
+  zeigeStatus('Bestimme Standort …', true);
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const { latitude: lat, longitude: lon } = pos.coords;
+    S.ort = { lat, lon, plz: '', stadt: '', label: 'wird ermittelt …', address: {}, gps: true };
+    renderEinst();
+    const [o] = await Promise.all([rueckwaerts(lat, lon), laden(true)]);
+    if (S.ort && S.ort.lat === lat && S.ort.lon === lon) {
+      S.ort = o; geladen && (geladen.lat = o.lat, geladen.lon = o.lon);
+      // Feiertage hängen vom Bundesland ab: Öffnungszeiten neu auswerten
+      for (const p of apos) { delete p._oh; delete p._tag; }
+      speichereEinst(); render();
+    }
+  }, err => {
+    const t = err.code === 1 ? 'Standortzugriff abgelehnt. In den Einstellungen erlauben oder Adresse eingeben.'
+      : 'Standort nicht ermittelbar. Bitte Adresse eingeben.';
+    $('#status').innerHTML = `<span class="fehler">${esc(t)}</span>`;
+  }, { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 });
+});
+
+$('#radius').addEventListener('input', e => {
+  S.radius = +e.target.value;
+  $('#radius-wert').textContent = S.radius + ' km';
+  if (geladen && geladen.radius >= S.radius * 1000 && (S.modus === 'luft' || fahrtFuer === geladen)) renderListe();
+});
+$('#radius').addEventListener('change', () => { speichereEinst(); anzahl = SEITE; laden(); });
+
+$('#modus').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  S.modus = b.dataset.v;
+  if (S.modus === 'luft' && S.sort === 'fahrzeit') S.sort = 'entfernung';
+  speichereEinst(); renderEinst(); laden();
+});
+$('#sort').addEventListener('change', e => {
+  S.sort = e.target.value;
+  if (S.sort === 'fahrzeit' && S.modus !== 'fahrt') { S.modus = 'fahrt'; speichereEinst(); renderEinst(); laden(); return; }
+  speichereEinst(); renderListe();
+});
+$('#tag').addEventListener('change', e => { S.tagOffset = +e.target.value; renderEinst(); renderListe(); });
+$('#filter').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  S.filter = b.dataset.v; anzahl = SEITE; speichereEinst(); renderEinst(); renderListe();
+});
+$('#unbekannt').addEventListener('change', e => { S.unbekannt = e.target.checked; speichereEinst(); renderListe(); });
+$('#reiter').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  S.tab = b.dataset.tab; speichereEinst(); renderEinst();
+});
+
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-aktion]'); if (!a) return;
+  const was = a.dataset.aktion;
+  if (was === 'neu') { e.preventDefault(); laden(true); }
+  else if (was === 'mehr') { anzahl += SEITE; renderListe(); }
+  else if (was === 'notdienst') { e.preventDefault(); S.tab = 'notdienst'; speichereEinst(); renderEinst(); window.scrollTo({ top: $('#reiter').offsetTop - 10, behavior: 'smooth' }); }
+  else if (was === 'woche') {
+    const art = a.closest('.apo'), w = art.querySelector('.woche');
+    const p = apos.find(x => x.id === art.dataset.id);
+    if (w.hidden && p) w.innerHTML = wochenplan(p);
+    w.hidden = !w.hidden;
+    a.textContent = w.hidden ? 'Woche ▾' : 'Woche ▴';
+  }
+});
+
+// Status „offen bis …" läuft mit der Uhr: jede Minute neu zeichnen (ohne Netz)
+setInterval(() => {
+  if (document.visibilityState !== 'visible' || laedt || !geladen) return;
+  const offen = [...document.querySelectorAll('.woche:not([hidden])')].map(w => w.closest('.apo').dataset.id);
+  renderEinst(); renderListe(); renderNotdienst();
+  offen.forEach(id => { const b = document.querySelector(`.apo[data-id="${CSS.escape(id)}"] [data-aktion="woche"]`); b && b.click(); });
+}, 60000);
+
+// ---------- Update-Mechanismus (Banner, Prüfung, Meldung) ----------
+const updateEl = document.getElementById('update');
+const versionEl = document.getElementById('version');
+versionEl.textContent = 'v' + APP_VERSION;
+let ausTimer = null, infoTimer = null;
+function einblenden() {
+  clearTimeout(ausTimer);
+  updateEl.hidden = false; void updateEl.offsetWidth;
+  updateEl.classList.add('an');
+}
+function ausblenden() {
+  updateEl.classList.remove('an'); clearTimeout(ausTimer);
+  ausTimer = setTimeout(() => { if (!updateEl.classList.contains('an')) updateEl.hidden = true; }, 380);
+}
+function bannerAnKante(ausloeser) {
+  if (!ausloeser) { updateEl.classList.remove('unten'); return; }
+  const r = ausloeser.getBoundingClientRect();
+  updateEl.classList.toggle('unten', r.top + r.height / 2 > window.innerHeight / 2);
+}
+function showInfo(text, sekunden = 2, ausloeser = null) {
+  updateEl.className = 'update info';
+  bannerAnKante(ausloeser);
+  document.getElementById('update-text').textContent = text;
+  document.getElementById('update-go').hidden = true;
+  einblenden();
+  clearTimeout(infoTimer);
+  if (sekunden) infoTimer = setTimeout(() => { if (updateEl.classList.contains('info')) ausblenden(); }, sekunden * 1000);
+}
+function zeigeBanner(text) {
+  updateEl.className = 'update';
+  bannerAnKante(null);
+  document.getElementById('update-text').textContent = text;
+  document.getElementById('update-go').hidden = false;
+  einblenden();
+}
+updateEl.addEventListener('click', () => { if (updateEl.classList.contains('info')) ausblenden(); });
+document.getElementById('update-go').addEventListener('click', () => { speichereEinst(); location.reload(); });
+
+let pruefe = false, gemeldet = null;
+async function checkForUpdate(manual = false) {
+  if (pruefe) return;
+  if (!manual && document.visibilityState !== 'visible') return;
+  if (!navigator.onLine) { if (manual) showInfo('Offline – Prüfung nicht möglich', 2, versionEl); return; }
+  pruefe = true;
+  try {
+    const res = await fetch('index.html', { cache: 'no-store' });
+    if (!res.ok) return;
+    const m = (await res.text()).match(/APP_VERSION = '([^']+)'/);
+    if (m && m[1] !== APP_VERSION) announceUpdate(m[1], manual);
+    else if (manual) showInfo('Version ' + APP_VERSION + ' ist aktuell', 4, versionEl);
+  } catch (_) { if (manual) showInfo('Prüfung fehlgeschlagen', 2, versionEl); }
+  finally { pruefe = false; }
+}
+function announceUpdate(v, manual) {
+  if (gemeldet === v && !manual) return;
+  gemeldet = v;
+  speichereEinst();
+  zeigeBanner('Neue Version ' + v + ' ist da');
+  const tippt = document.activeElement === document.getElementById('adr');
+  if (manual || !tippt) setTimeout(() => location.reload(), manual ? 1500 : 3000);
+}
+window.addEventListener('pageshow', () => setTimeout(checkForUpdate, 800));
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    checkForUpdate();
+    if (geladen) { renderEinst(); renderListe(); }
+  }
+});
+versionEl.addEventListener('click', () => checkForUpdate(true));
+{
+  const GESEHEN = 'apotheke.gesehen';
+  let vorher = null;
+  try { vorher = localStorage.getItem(GESEHEN); } catch (_) {}
+  if (vorher !== APP_VERSION) {
+    try { localStorage.setItem(GESEHEN, APP_VERSION); } catch (_) {}
+    if (vorher) setTimeout(() => showInfo('Version ' + APP_VERSION + ' ist geladen', 4), 400);
+  }
+}
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+
+// ---------- Start ----------
+render();
+if (S.ort) laden(true);
+</script>
+</body>
+</html>
