@@ -238,7 +238,7 @@ footer a { color: var(--leise); }
 
 <script>
 'use strict';
-const APP_VERSION = '1.11';
+const APP_VERSION = '1.12';
 
 // ---------- Konstanten ----------
 const OH_URL = 'https://cdn.jsdelivr.net/npm/opening_hours@3.15.0/+esm';
@@ -1042,7 +1042,11 @@ $('#tag').addEventListener('change', e => {
   S.tagOffset = +e.target.value;
   if (S.tagOffset > 0 && S.filter === 'jetzt') { S.filter = 'tag'; filterAutomatisch = true; }
   else if (S.tagOffset === 0 && filterAutomatisch && S.filter === 'tag') { S.filter = 'jetzt'; filterAutomatisch = false; }
+  // Notdienst zeigt nur heute; wer einen anderen Tag wählt, will die Apothekenliste dieses Tages sehen
+  const vonNotdienst = S.tagOffset > 0 && S.tab === 'notdienst';
+  if (vonNotdienst) S.tab = 'liste';
   anzahl = SEITE; renderEinst(); renderListe();
+  if (vonNotdienst) requestAnimationFrame(() => window.scrollTo({ top: $('#reiter').getBoundingClientRect().top + window.scrollY - 10, behavior: 'smooth' }));
 });
 $('#filter').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;

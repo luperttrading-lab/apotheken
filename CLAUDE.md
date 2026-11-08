@@ -68,6 +68,8 @@ Eine Datei `index.html` (HTML, CSS, JS), dazu `sw.js`, `manifest.webmanifest`, I
 
 Wird ein anderer Tag als heute gewählt und steht der Filter auf „Jetzt offen“, stellt die App auf „Am Mo offen“
 um; zurück auf heute wieder auf „Jetzt offen“ – nur wenn die App selbst umgestellt hat (`filterAutomatisch`).
+Ab v1.12: Steht man im Notdienst-Reiter und wählt einen anderen Tag, wechselt die App auf den Reiter Apotheken
+(Notdienst zeigt nur heute) und holt die Liste an den oberen Rand.
 
 ## Anzeige nach Sortierung (ab v1.10, Wunsch 08.11.)
 
