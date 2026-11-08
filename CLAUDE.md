@@ -25,6 +25,12 @@ Eine Datei `index.html` (HTML, CSS, JS), dazu `sw.js`, `manifest.webmanifest`, I
 - Auswertung der Öffnungszeiten: `opening_hours.js` 3.15.0 von jsDelivr (`/+esm`, ~90 KB über die Leitung).
   Alle 14.011 deutschen Einträge werden fehlerfrei gelesen; Feiertage nach Bundesland über die
   Nominatim-Adresse (`ISO3166-2-lvl4`).
+- Feiertage (ab v1.15): Nur 18,2 % der deutschen Einträge nennen PH. Ohne Ergänzung wären am 25.12.2026 11.302
+  von 14.011 Apotheken „offen“ gewesen. `mitFeiertagen()` hängt „; PH off“ an, außer bei 24/7 oder sonntags
+  offenen Einträgen (65); danach 115 offen, alle 14.011 Einträge weiter lesbar. Heiligabend und Silvester sind
+  keine Feiertage; verkürzte Zeiten kennt OpenStreetMap meist nicht.
+- Sortierung „Nächste Öffnung“ (ab v1.15) stellt den Filter auf „Alle“, damit auch Apotheken erscheinen, die erst
+  am Montag oder nach Feiertagen öffnen (Wunsch 08.11.); Test 24.12. 19:00 → „Öffnet Mo 07:00“ (28.12.).
 - Adresssuche/Rückwärtssuche: Nominatim (max. 1 Anfrage/s, nur auf Absenden).
   Nur ein Ortsname („München“) liefert bei Nominatim keine PLZ (addresstype city) → ab v1.9 PLZ per
   Rückwärtssuche am Ortsmittelpunkt (München → 80331, Hamburg → 20095); ohne PLZ zeigte aponet nur die leere Suche.

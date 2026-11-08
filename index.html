@@ -210,7 +210,7 @@ footer a { color: var(--leise); }
           <option value="fahrzeit">Fahrzeit (Auto)</option>
           <option value="schliesst">Schließt zuletzt</option>
           <option value="oeffnet">Öffnet zuerst</option>
-          <option value="naechste">Nächste Öffnung ab jetzt</option>
+          <option value="naechste">Nächste Öffnung</option>
           <option value="name">Name A–Z</option>
         </select>
       </label>
@@ -242,7 +242,7 @@ footer a { color: var(--leise); }
 
 <script>
 'use strict';
-const APP_VERSION = '1.14';
+const APP_VERSION = '1.15';
 
 // ---------- Konstanten ----------
 const OH_URL = 'https://cdn.jsdelivr.net/npm/opening_hours@3.15.0/+esm';
@@ -531,11 +531,20 @@ async function ladeOH() {
 function nomObj() {
   return { lat: S.ort.lat, lon: S.ort.lon, address: Object.assign({ country_code: 'de' }, S.ort.address || {}) };
 }
+// Nur 18,2 % der deutschen Einträge nennen Feiertage (PH, gemessen 08.11.). Ohne Angabe gilt ein Feiertag sonst als
+// normaler Werktag: am 25.12.2026 wären 11.302 von 14.011 Apotheken „offen“ gewesen, mit dieser Ergänzung 115.
+// Apotheken haben an Feiertagen außer im Notdienst zu -> „; PH off“ anhängen, außer bei 24/7 oder sonntags offenen.
+function mitFeiertagen(t) {
+  if (/\bPH\b/.test(t) || /24\/7/.test(t)) return t;
+  if (t.split(';').some(r => /\bSu\b/.test(r) && !/\b(off|closed)\b/.test(r))) return t;
+  return t.replace(/;\s*$/, '') + '; PH off';
+}
 function ohVon(p) {
   if (!OH || !p.ohText) return null;
   if (p._oh !== undefined) return p._oh;
-  try { p._oh = new OH(p.ohText, nomObj(), { mode: 0, tag_key: 'opening_hours', locale: 'de' }); }
-  catch (_) { p._oh = null; }
+  const opt = { mode: 0, tag_key: 'opening_hours', locale: 'de' };
+  try { p._oh = new OH(mitFeiertagen(p.ohText), nomObj(), opt); }
+  catch (_) { try { p._oh = new OH(p.ohText, nomObj(), opt); } catch (_) { p._oh = null; } }
   return p._oh;
 }
 function tagInfo(p, D0) {
@@ -1039,6 +1048,8 @@ $('#modus').addEventListener('click', e => {
 });
 $('#sort').addEventListener('change', e => {
   S.sort = e.target.value;
+  // „Nächste Öffnung“ soll jede Apotheke zeigen, auch die erst Montag oder nach Feiertagen wieder öffnen
+  if (S.sort === 'naechste' && S.filter !== 'alle') { S.filter = 'alle'; filterAutomatisch = true; anzahl = SEITE; renderEinst(); }
   if (S.sort === 'fahrzeit' && S.modus !== 'fahrt') { S.modus = 'fahrt'; speichereEinst(); renderEinst(); laden(); return; }
   speichereEinst(); renderListe();
 });
