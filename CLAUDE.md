@@ -51,7 +51,12 @@ Eine Datei `index.html` (HTML, CSS, JS), dazu `sw.js`, `manifest.webmanifest`, I
   wuchsen Werbeplätze nach dem Sprung und schoben die Liste weg (Screenshot 08.11. 20:07); daher springt die App
   1,5/3,5/6 s nach dem Laden und 1/3 s nach dem ersten Tipp in den Rahmen (meist „Zustimmen“) erneut, indem sie
   dieselbe Adresse setzt (= Sprung innerhalb der Seite, kein Neuladen). Solange aponets Zustimmungsabfrage offen
-  ist, lässt sich deren Seite nicht scrollen. Filter „Heute noch offen“ heißt seit v1.5 „Jetzt oder später“
+  ist, lässt sich deren Seite nicht scrollen.
+  Ab v1.13 (ersetzt die Sprung-Wiederholungen aus v1.8): Rahmen ohne `allow-scripts`. aponets Notdienstliste
+  kommt fertig vom Server; deren Skripte laden nur Werbung, Karte und Zustimmungsabfrage. Am iPhone sprang die
+  Liste trotz erneuter Sprünge weg (Nutzer 08.11. 21:10). Ohne Skripte: keine Werbung, keine Zustimmung, nichts
+  verschiebt sich; Karte und erweiterte Suche nur noch über „In Safari öffnen“. Wirkt wie ein Werbeblocker –
+  für die private Nutzung gewählt, bei einer Veröffentlichung neu bewerten. Filter „Heute noch offen“ heißt seit v1.5 „Jetzt oder später“
   (= jetzt offen oder öffnet heute noch).
 
 ## Startverhalten (ab v1.6, Wunsch des Nutzers 08.11.)

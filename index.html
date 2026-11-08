@@ -238,7 +238,7 @@ footer a { color: var(--leise); }
 
 <script>
 'use strict';
-const APP_VERSION = '1.12';
+const APP_VERSION = '1.13';
 
 // ---------- Konstanten ----------
 const OH_URL = 'https://cdn.jsdelivr.net/npm/opening_hours@3.15.0/+esm';
@@ -873,7 +873,7 @@ function renderNotdienst() {
   $('#nd-kopf').innerHTML = `<h2 class="nd-titel">🌙 Notdienst${ortText ? ' für ' + esc(ortText.trim()) : ''}</h2>`;
   $('#nd-rest').innerHTML = `
     <div class="karte notdienst">
-      <p class="klein">Offizielle Liste von aponet.de (Bundesapothekerkammer), oben eingebettet. Die App liest sie nicht aus – deshalb sind die Notdienste in der Apothekenliste nicht markiert. Weiße Lücken darin sind leere Werbeplätze von aponet; an deren Seite kann die App nichts ändern. aponet fragt zuerst nach Zustimmung zu Werbung; eingebettet merkt sich das iPhone die Wahl vermutlich nicht, in Safari schon.</p>
+      <p class="klein">Offizielle Liste von aponet.de (Bundesapothekerkammer), oben eingebettet. Die App liest sie nicht aus – deshalb sind die Notdienste in der Apothekenliste nicht markiert. Eingebettet ohne aponets Skripte: keine Werbung, keine Zustimmungsabfrage, die Liste verrutscht nicht. Karte und erweiterte Suche gibt es dafür nur in Safari.</p>
       <a class="knopf rot" href="${aponetLink(true)}" target="_blank" rel="noopener">In Safari öffnen</a>
       <a class="knopf rot-hell" href="tel:08000022833">📞 0800 00 22833 – Festnetz, kostenlos</a>
       <a class="knopf rot-hell" href="tel:22833">📱 22833 – vom Handy (max. 69 ct/Min.)</a>
@@ -894,30 +894,13 @@ function rahmenAktualisieren() {
   const url = aponetLink(true);
   if (url === rahmenUrl && box.querySelector('iframe')) return;
   rahmenUrl = url;
+  // Ohne „allow-scripts“: aponets Liste kommt fertig vom Server, die Skripte laden nur Werbung, Karte und die
+  // Zustimmungsabfrage. Mit ihnen wuchsen auf dem iPhone nach dem Sprung Werbeplätze über der Liste und schoben
+  // sie weg (08.11., auch mit erneuten Sprüngen). Ohne sie steht die Liste fest an der Sprungmarke.
   box.innerHTML = `<iframe src="${esc(url)}" title="Notdienst-Apotheken auf aponet.de" referrerpolicy="strict-origin-when-cross-origin"
-    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-to-custom-protocols"></iframe>
+    sandbox="allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-to-custom-protocols"></iframe>
     <div class="quelle">Inhalt: aponet.de – Gesundheitsportal der deutschen Apothekerinnen und Apotheker</div>`;
-  // Auf dem iPhone wachsen über der Liste nach dem Sprung noch Werbeplätze und schieben sie nach unten
-  // (Safari gleicht das nicht aus). Deshalb nach dem Laden noch dreimal zur Liste springen. Bei gleicher
-  // Adresse ist das nur ein Sprung innerhalb der Seite, kein Neuladen (geprüft 08.11.: Liste danach direkt
-  // unter aponets Kopf). Solange aponets Zustimmungsabfrage offen ist, lässt sich deren Seite nicht scrollen.
-  // Der erste Tipp in den Rahmen ist meist „Zustimmen“: danach noch zweimal springen, dann nie wieder.
-  const fr = box.querySelector('iframe');
-  if (/#/.test(url) && /notdienstsuche\/\d{5}-/.test(url)) {
-    const springe = liste => liste.forEach(ms => sprungTimer.push(setTimeout(() => { if (fr.isConnected) fr.src = url; }, ms)));
-    fr.addEventListener('load', () => {
-      sprungTimer.forEach(clearTimeout); sprungTimer = [];
-      springe([1500, 3500, 6000]);
-      const geladen = Date.now();
-      const ersterTipp = () => {
-        window.removeEventListener('blur', ersterTipp);
-        if (Date.now() - geladen < 20000 && document.activeElement === fr) springe([1000, 3000]);
-      };
-      window.addEventListener('blur', ersterTipp);
-    }, { once: true });
-  }
 }
-let sprungTimer = [];
 
 // ---------- Ereignisse ----------
 $('#adr-form').addEventListener('submit', async e => {
