@@ -59,6 +59,13 @@ Eine Datei `index.html` (HTML, CSS, JS), dazu `sw.js`, `manifest.webmanifest`, I
   für die private Nutzung gewählt, bei einer Veröffentlichung neu bewerten. Filter „Heute noch offen“ heißt seit v1.5 „Jetzt oder später“
   (= jetzt offen oder öffnet heute noch).
 
+## Gestaltungsregel des Nutzers (08.11.)
+
+Der Bezug einer Suche gehört groß und oben auf den Bildschirm: Wo gesucht wird, muss auf einen Blick erkennbar
+sein, nicht als kleine graue Zeile. Umgesetzt ab v1.14 als grüner Kasten „Suche um“ über allen Eingaben
+(Straße groß, PLZ/Ort darunter, Quelle GPS oder Adresse); die Statuszeile nennt den Ort ebenfalls
+(„… im Umkreis von 10 km um Wettenberg“). Gilt für alle Apps des Nutzers.
+
 ## Startverhalten (ab v1.6, Wunsch des Nutzers 08.11.)
 
 - Jeder Start: 10 km, Fahrstrecke, Filter „Jetzt offen“, Apotheken ohne Zeitangabe ausgeblendet, Reiter Apotheken,

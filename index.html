@@ -61,8 +61,13 @@ button, .knopf {
 @media (prefers-color-scheme: dark) { button, .knopf { color: #06240e; } }
 button.sek, .knopf.sek { background: var(--gruen-hell); color: var(--gruen); }
 .gps { width: 100%; margin-top: 8px; padding: 8px 14px; font-size: 15px; }
-.ort { margin-top: 8px; font-size: 14px; color: var(--leise); }
-.ort b { color: var(--text); font-weight: 600; }
+.suchort { background: var(--gruen-hell); border-radius: 16px; padding: 12px 14px; margin: 6px 0 10px; }
+.suchort .label { font-size: 12px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--gruen); }
+.suchort .gross { font-size: 24px; font-weight: 750; line-height: 1.2; margin-top: 3px; color: var(--text); }
+.suchort .zweite { font-size: 17px; font-weight: 600; color: var(--text); margin-top: 1px; }
+.suchort .quelle { font-size: 13px; color: var(--leise); margin-top: 5px; }
+.suchort .hinweis { display: block; font-size: 13px; color: var(--gelb); margin-top: 3px; }
+.suchort.leer .gross { font-size: 19px; color: var(--leise); }
 .zeile { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .zeile label { font-weight: 600; }
 output { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--gruen); }
@@ -148,7 +153,6 @@ footer a { color: var(--leise); }
 .hilfe li { margin: 4px 0; }
 .hilfe .knoepfe { display: flex; gap: 8px; margin-top: 8px; }
 .hilfe .knoepfe button { flex: 1; font-size: 15px; padding: 8px 10px; }
-.ort .hinweis { display: block; font-size: 13px; color: var(--gelb); margin-top: 2px; }
 .fehler { background: var(--rot-hell); color: var(--rot); border-radius: 12px; padding: 10px 12px; font-size: 14px; margin: 8px 0; }
 
 /* Update-Banner: liegt fest über der Seite, schiebt nichts */
@@ -178,13 +182,13 @@ footer a { color: var(--leise); }
 </header>
 
 <main>
+  <section class="suchort leer" id="ort" aria-live="polite"></section>
   <section class="karte">
     <form class="adr" id="adr-form">
       <input type="search" id="adr" placeholder="Adresse oder PLZ" autocomplete="street-address" enterkeyhint="search" aria-label="Adresse oder PLZ">
       <button type="submit">Suchen</button>
     </form>
     <button class="sek gps" id="gps" type="button">📍 Meinen Standort verwenden</button>
-    <div class="ort" id="ort"></div>
     <div id="hilfe"></div>
   </section>
 
@@ -238,7 +242,7 @@ footer a { color: var(--leise); }
 
 <script>
 'use strict';
-const APP_VERSION = '1.13';
+const APP_VERSION = '1.14';
 
 // ---------- Konstanten ----------
 const OH_URL = 'https://cdn.jsdelivr.net/npm/opening_hours@3.15.0/+esm';
@@ -676,6 +680,16 @@ function zeigeStatus(text, dreht) {
   $('#status').innerHTML = `<span class="${dreht ? 'laed' : ''}">${esc(text)}</span>`;
 }
 
+// „Weiherstraße 7, 35435 Wettenberg“ -> ['Weiherstraße 7', '35435 Wettenberg']; „München“ -> ['München', '80331']
+function ortZeilen(o) {
+  const teile = String(o.label || '').split(', ');
+  const gross = teile[0] || o.label || '';
+  let zweite = teile.slice(1).join(', ');
+  if (!zweite && o.plz) zweite = [o.plz, o.stadt && o.stadt !== gross ? o.stadt : ''].filter(Boolean).join(' ');
+  return [gross, zweite];
+}
+function ortKurz(o) { return o ? (o.stadt || ortZeilen(o)[0]) : ''; }
+
 function renderEinst() {
   $('#radius').value = S.radius;
   $('#radius-wert').textContent = S.radius + ' km';
@@ -692,9 +706,19 @@ function renderEinst() {
   }).join('');
   sel.value = S.tagOffset;
   $('#filter-tag').textContent = S.tagOffset === 0 ? 'Jetzt oder später' : 'Am ' + WT[plusTage(heute, S.tagOffset).getDay()] + ' offen';
-  $('#ort').innerHTML = S.ort
-    ? `${S.ort.gps ? 'Standort' : 'Adresse'}: <b>${esc(S.ort.label)}</b>${S.ort.hinweis ? `<span class="hinweis">${esc(S.ort.hinweis)}</span>` : ''}${ortetGerade ? '<span class="hinweis">Standort wird bestimmt …</span>' : ''}`
-    : 'Noch kein Ort gewählt.';
+  // Groß oben: für welchen Ort gesucht wird (Wunsch 08.11.: muss auf einen Blick erkennbar sein)
+  const ortEl = $('#ort');
+  ortEl.classList.toggle('leer', !S.ort);
+  if (S.ort) {
+    const [gross, zweite] = ortZeilen(S.ort);
+    ortEl.innerHTML = `<div class="label">Suche um</div>
+      <div class="gross">📍 ${esc(gross)}</div>${zweite ? `<div class="zweite">${esc(zweite)}</div>` : ''}
+      <div class="quelle">${S.ort.gps ? 'Aktueller Standort (GPS)' : 'Eingegebene Adresse'}${ortetGerade ? ' · Standort wird bestimmt …' : ''}</div>
+      ${S.ort.hinweis ? `<span class="hinweis">${esc(S.ort.hinweis)}</span>` : ''}`;
+  } else {
+    ortEl.innerHTML = `<div class="label">Suche um</div><div class="gross">Noch kein Ort</div>
+      <div class="quelle">${ortetGerade ? 'Standort wird bestimmt …' : 'Adresse oder PLZ eingeben oder „Meinen Standort verwenden“ tippen.'}</div>`;
+  }
   $('#liste').hidden = S.tab !== 'liste';
   $('#notdienst').hidden = S.tab !== 'notdienst';
   rahmenAktualisieren();
@@ -842,7 +866,7 @@ function renderListe() {
   if (ausKacheln && datenIndex) { const d = new Date(datenIndex.stand); hinweis += ' · Datenstand ' + d.getDate() + '.' + (d.getMonth() + 1) + '.'; }
   if (ausSpeicher) hinweis += ' · Server nicht erreichbar, gespeicherter Stand vom ' + ausSpeicher.getDate() + '.' + (ausSpeicher.getMonth() + 1) + '. ' + hhmm(ausSpeicher);
   if (!laedt) {
-    $('#status').innerHTML = `<span>${imUmkreis.length} im Umkreis von ${S.radius} km (${art}) · ${offenJetzt} jetzt offen${esc(hinweis)}</span>` +
+    $('#status').innerHTML = `<span>${imUmkreis.length} im Umkreis von ${S.radius} km um ${esc(ortKurz(S.ort))} (${art}) · ${offenJetzt} jetzt offen${esc(hinweis)}</span>` +
       `<button type="button" data-aktion="neu">Aktualisieren</button>`;
   }
 
