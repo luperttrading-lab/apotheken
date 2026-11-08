@@ -238,7 +238,7 @@ footer a { color: var(--leise); }
 
 <script>
 'use strict';
-const APP_VERSION = '1.10';
+const APP_VERSION = '1.11';
 
 // ---------- Konstanten ----------
 const OH_URL = 'https://cdn.jsdelivr.net/npm/opening_hours@3.15.0/+esm';
@@ -1035,10 +1035,18 @@ $('#sort').addEventListener('change', e => {
   if (S.sort === 'fahrzeit' && S.modus !== 'fahrt') { S.modus = 'fahrt'; speichereEinst(); renderEinst(); laden(); return; }
   speichereEinst(); renderListe();
 });
-$('#tag').addEventListener('change', e => { S.tagOffset = +e.target.value; renderEinst(); renderListe(); });
+// Anderer Tag als heute: „Jetzt offen“ ergibt keinen Sinn -> automatisch „Am Mo offen“.
+// Zurück auf heute: wieder „Jetzt offen“, sofern die App selbst umgestellt hat.
+let filterAutomatisch = false;
+$('#tag').addEventListener('change', e => {
+  S.tagOffset = +e.target.value;
+  if (S.tagOffset > 0 && S.filter === 'jetzt') { S.filter = 'tag'; filterAutomatisch = true; }
+  else if (S.tagOffset === 0 && filterAutomatisch && S.filter === 'tag') { S.filter = 'jetzt'; filterAutomatisch = false; }
+  anzahl = SEITE; renderEinst(); renderListe();
+});
 $('#filter').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
-  S.filter = b.dataset.v; anzahl = SEITE; speichereEinst(); renderEinst(); renderListe();
+  S.filter = b.dataset.v; filterAutomatisch = false; anzahl = SEITE; speichereEinst(); renderEinst(); renderListe();
 });
 $('#unbekannt').addEventListener('change', e => { S.unbekannt = e.target.checked; speichereEinst(); renderListe(); });
 $('#reiter').addEventListener('click', e => {

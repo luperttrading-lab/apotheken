@@ -64,6 +64,11 @@ Eine Datei `index.html` (HTML, CSS, JS), dazu `sw.js`, `manifest.webmanifest`, I
   Safari-Freigabe gilt je Domain, die Home-Bildschirm-App hat eine eigene → Nutzer soll die App vom
   Home-Bildschirm öffnen. Die Hilfekarte nennt das als ersten Schritt (nur außerhalb des Home-Bildschirms).
 
+## Tag und Filter (ab v1.11, Wunsch 08.11.)
+
+Wird ein anderer Tag als heute gewählt und steht der Filter auf „Jetzt offen“, stellt die App auf „Am Mo offen“
+um; zurück auf heute wieder auf „Jetzt offen“ – nur wenn die App selbst umgestellt hat (`filterAutomatisch`).
+
 ## Anzeige nach Sortierung (ab v1.10, Wunsch 08.11.)
 
 Oben rechts in der Karte steht der Wert, nach dem sortiert ist (`sortBadge`): „Schließt 20:00“, „Öffnet 07:00“,
