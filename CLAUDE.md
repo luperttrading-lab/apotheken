@@ -37,6 +37,11 @@ Eine Datei `index.html` (HTML, CSS, JS), dazu `sw.js`, `manifest.webmanifest`, I
 - Notdienst: Die tagesaktuellen Daten vertreibt Avoxa im Auftrag der Bundesapothekerkammer nur gegen Lizenz
   (apotheken-notdienstdaten.de). Frei erlaubt ist der Link `https://www.aponet.de/notdienstsuche/<PLZ>`.
   aponet nicht auslesen. Hotline 0800 00 22833 (Festnetz, kostenlos), 22833 vom Handy (max. 69 ct/Min.).
+  Ab v1.5 ist die aponet-Seite im Notdienst-Reiter eingebettet (`iframe`, erst beim Öffnen des Reiters geladen,
+  `sandbox` ohne Top-Navigation). aponet sendet weder CORS- noch Frame-Sperre (geprüft 08.11.). Davor steht deren
+  Zustimmungsabfrage („Kostenfrei mit Werbung“); Safari speichert Cookies eingebetteter Seiten nicht, daher
+  vermutlich bei jedem Öffnen erneut. Filter „Heute noch offen“ heißt seit v1.5 „Jetzt oder später“
+  (= jetzt offen oder öffnet heute noch).
 
 ## Testen
 

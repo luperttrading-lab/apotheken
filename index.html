@@ -128,6 +128,8 @@ input[type=range] { width: 100%; margin: 10px 0 2px; accent-color: var(--gruen);
 .knopf.rot { background: var(--rot); color: #fff; font-weight: 600; }
 .knopf.rot-hell { background: var(--rot-hell); color: var(--rot); }
 .klein { font-size: 13px; color: var(--leise); }
+.nd-rahmen iframe { display: block; width: 100%; height: 72vh; min-height: 440px; border: 1px solid var(--linie); border-radius: 14px; background: #fff; }
+.nd-rahmen .quelle { font-size: 12px; color: var(--leise); margin: 4px 4px 0; }
 footer { font-size: 12px; color: var(--leise); margin-top: 24px; text-align: center; line-height: 1.6; }
 footer a { color: var(--leise); }
 .hilfe { position: relative; background: var(--gelb-hell); color: var(--text); border-radius: 12px; padding: 10px 40px 10px 12px; font-size: 14px; margin-top: 10px; }
@@ -206,7 +208,7 @@ footer a { color: var(--leise); }
     <div class="chips" id="filter">
       <button type="button" data-v="alle">Alle</button>
       <button type="button" data-v="jetzt">Jetzt offen</button>
-      <button type="button" data-v="tag" id="filter-tag">Heute noch offen</button>
+      <button type="button" data-v="tag" id="filter-tag">Jetzt oder später</button>
     </div>
     <label class="haken"><input type="checkbox" id="unbekannt"> Auch Apotheken ohne Öffnungszeiten zeigen</label>
   </section>
@@ -218,7 +220,7 @@ footer a { color: var(--leise); }
 
   <div class="status" id="status"></div>
   <section id="liste"></section>
-  <section id="notdienst" hidden></section>
+  <section id="notdienst" hidden><div id="nd-kopf"></div><div class="nd-rahmen" id="nd-rahmen"></div><div id="nd-rest"></div></section>
 
   <footer>
     Apotheken &amp; Öffnungszeiten: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende (ODbL)<br>
@@ -230,7 +232,7 @@ footer a { color: var(--leise); }
 
 <script>
 'use strict';
-const APP_VERSION = '1.4';
+const APP_VERSION = '1.5';
 
 // ---------- Konstanten ----------
 const OH_URL = 'https://cdn.jsdelivr.net/npm/opening_hours@3.15.0/+esm';
@@ -637,12 +639,13 @@ function renderEinst() {
     return `<option value="${i}">${name} (${datumKurz(d)})</option>`;
   }).join('');
   sel.value = S.tagOffset;
-  $('#filter-tag').textContent = S.tagOffset === 0 ? 'Heute noch offen' : 'Am ' + WT[plusTage(heute, S.tagOffset).getDay()] + ' offen';
+  $('#filter-tag').textContent = S.tagOffset === 0 ? 'Jetzt oder später' : 'Am ' + WT[plusTage(heute, S.tagOffset).getDay()] + ' offen';
   $('#ort').innerHTML = S.ort
     ? `${S.ort.gps ? 'Standort' : 'Adresse'}: <b>${esc(S.ort.label)}</b>${S.ort.hinweis ? `<span class="hinweis">${esc(S.ort.hinweis)}</span>` : ''}`
     : 'Noch kein Ort gewählt.';
   $('#liste').hidden = S.tab !== 'liste';
   $('#notdienst').hidden = S.tab !== 'notdienst';
+  rahmenAktualisieren();
 }
 
 function render() {
@@ -794,7 +797,6 @@ function renderListe() {
 }
 
 function renderNotdienst() {
-  const box = $('#notdienst');
   const ortText = S.ort ? (S.ort.plz ? S.ort.plz + ' ' + (S.ort.stadt || '') : S.ort.label) : '';
   const now = new Date();
   let rund = [];
@@ -802,17 +804,34 @@ function renderNotdienst() {
     const R = S.radius * 1000;
     rund = apos.filter(p => p.luft <= R && ohVon(p) && tagInfo(p, tagAnfang(now))?.rund).sort((a, b) => a.luft - b.luft);
   }
-  box.innerHTML = `
+  $('#nd-kopf').innerHTML = `
     <div class="karte notdienst">
-      <h2>🌙 Notdienst</h2>
-      <p>Welche Apotheke heute Notdienst hat, wechselt täglich und wird von den Apothekerkammern festgelegt. Diese Daten gibt die Bundesapothekerkammer nur gegen Lizenz ab – deshalb öffnet die App die offizielle Notdienstsuche, statt die Apotheken selbst zu markieren.</p>
-      <a class="knopf rot" href="${aponetLink()}" target="_blank" rel="noopener">Notdienst ${ortText ? 'für ' + esc(ortText.trim()) + ' ' : ''}anzeigen</a>
-      <div class="klein">Offizielle Notdienstsuche auf aponet.de (Bundesapothekerkammer / ABDA)</div>
+      <h2>🌙 Notdienst${ortText ? ' für ' + esc(ortText.trim()) : ''}</h2>
+      <p class="klein">Offizielle Liste von aponet.de (Bundesapothekerkammer), hier eingebettet. Die App liest sie nicht aus – deshalb sind die Notdienste in der Apothekenliste nicht markiert.</p>
+      <p class="klein">aponet fragt zuerst nach Zustimmung zu Werbung. Eingebettet merkt sich das iPhone die Wahl vermutlich nicht – in Safari schon: <a href="${aponetLink()}" target="_blank" rel="noopener">in Safari öffnen</a>.</p>
+    </div>`;
+  $('#nd-rest').innerHTML = `
+    <div class="karte notdienst">
+      <a class="knopf rot" href="${aponetLink()}" target="_blank" rel="noopener">In Safari öffnen</a>
       <a class="knopf rot-hell" href="tel:08000022833">📞 0800 00 22833 – Festnetz, kostenlos</a>
       <a class="knopf rot-hell" href="tel:22833">📱 22833 – vom Handy (max. 69 ct/Min.)</a>
       <p class="klein">Im Notdienst kann die Apotheke eine Notdienstgebühr von 2,50 € berechnen.</p>
     </div>
     ${rund.length ? `<div class="abschnitt">Laut Angabe rund um die Uhr geöffnet (${rund.length})</div>` + rund.map(p => karte(p, now, tagAnfang(now), false)).join('') : ''}`;
+}
+
+// Die aponet-Seite erst laden, wenn der Reiter offen ist, und nur neu laden, wenn sich der Ort ändert.
+// sandbox ohne allow-top-navigation: die eingebettete Seite kann die App nicht wegnavigieren.
+let rahmenUrl = null;
+function rahmenAktualisieren() {
+  const box = $('#nd-rahmen');
+  if (S.tab !== 'notdienst') return;
+  const url = aponetLink();
+  if (url === rahmenUrl && box.querySelector('iframe')) return;
+  rahmenUrl = url;
+  box.innerHTML = `<iframe src="${esc(url)}" title="Notdienst-Apotheken auf aponet.de" referrerpolicy="strict-origin-when-cross-origin"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-to-custom-protocols"></iframe>
+    <div class="quelle">Inhalt: aponet.de – Gesundheitsportal der deutschen Apothekerinnen und Apotheker</div>`;
 }
 
 // ---------- Ereignisse ----------
