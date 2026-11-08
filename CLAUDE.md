@@ -43,6 +43,16 @@ Eine Datei `index.html` (HTML, CSS, JS), dazu `sw.js`, `manifest.webmanifest`, I
   vermutlich bei jedem Öffnen erneut. Filter „Heute noch offen“ heißt seit v1.5 „Jetzt oder später“
   (= jetzt offen oder öffnet heute noch).
 
+## Startverhalten (ab v1.6, Wunsch des Nutzers 08.11.)
+
+- Jeder Start: 10 km, Fahrstrecke, Filter „Jetzt offen“, Apotheken ohne Zeitangabe ausgeblendet, Reiter Apotheken,
+  Tag Heute. Gemerkt werden nur letzter Ort (Rückfall) und Sortierung.
+- Beim Öffnen wird sofort geortet (`holeStandort(true)`, wie die Standort-Uhr); der gemerkte Ort wird parallel
+  gezeigt und durch den Standort ersetzt, sobald er da ist. Fehler beim Start: nur einzeilige Hilfe.
+- Ortung in Safari sofort abgelehnt, in der Standort-Uhr (gleiche Domain luperttrading-lab.github.io) gefragt:
+  Safari-Freigabe gilt je Domain, die Home-Bildschirm-App hat eine eigene → Nutzer soll die App vom
+  Home-Bildschirm öffnen. Die Hilfekarte nennt das als ersten Schritt (nur außerhalb des Home-Bildschirms).
+
 ## Testen
 
 Playwright mit iPhone-Maßen und simuliertem Standort. In der Cloud-Sandbox blockiert der Proxy

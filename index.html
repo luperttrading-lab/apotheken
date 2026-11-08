@@ -190,7 +190,7 @@ footer a { color: var(--leise); }
         <button type="button" data-v="fahrt">Fahrstrecke</button>
       </div>
     </div>
-    <input type="range" id="radius" min="1" max="30" step="1" value="5">
+    <input type="range" id="radius" min="1" max="30" step="1" value="10">
     <div class="zwei">
       <label>Tag<select id="tag"></select></label>
       <label>Sortierung
@@ -232,7 +232,7 @@ footer a { color: var(--leise); }
 
 <script>
 'use strict';
-const APP_VERSION = '1.5';
+const APP_VERSION = '1.6';
 
 // ---------- Konstanten ----------
 const OH_URL = 'https://cdn.jsdelivr.net/npm/opening_hours@3.15.0/+esm';
@@ -254,10 +254,11 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // ---------- Zustand ----------
-const S = Object.assign(
-  { ort: null, radius: 5, modus: 'luft', sort: 'empfohlen', filter: 'alle', unbekannt: true, tab: 'liste' },
-  ladeEinst()
-);
+// Bei jedem Start: 10 km Fahrstrecke, nur jetzt geöffnete, ohne Apotheken ohne Zeitangabe (Wunsch 08.11.).
+// Gemerkt werden nur der letzte Ort (Rückfall, falls die Ortung nicht klappt) und die Sortierung.
+const STANDARD = { radius: 10, modus: 'fahrt', filter: 'jetzt', unbekannt: false, tab: 'liste' };
+const gemerkt = ladeEinst();
+const S = Object.assign({ ort: gemerkt.ort || null, sort: gemerkt.sort || 'empfohlen' }, STANDARD);
 S.tagOffset = 0;              // startet immer mit „Heute"
 let apos = [];                // aufbereitete Apotheken der letzten Abfrage
 let geladen = null;           // { lat, lon, radius, zeit } der letzten Overpass-Abfrage
@@ -268,6 +269,7 @@ let ohFehler = false;
 let lauf = 0;                 // Zähler gegen überholte Antworten
 let anzahl = SEITE;
 let laedt = false;
+let ortetGerade = false;      // Ortung beim Start läuft
 let ausKacheln = false;      // true, wenn die Liste aus den vorberechneten Kacheln stammt
 let ausSpeicher = null;     // Zeitpunkt des gespeicherten Stands, wenn gerade aus dem Speicher gezeigt wird
 
@@ -641,7 +643,7 @@ function renderEinst() {
   sel.value = S.tagOffset;
   $('#filter-tag').textContent = S.tagOffset === 0 ? 'Jetzt oder später' : 'Am ' + WT[plusTage(heute, S.tagOffset).getDay()] + ' offen';
   $('#ort').innerHTML = S.ort
-    ? `${S.ort.gps ? 'Standort' : 'Adresse'}: <b>${esc(S.ort.label)}</b>${S.ort.hinweis ? `<span class="hinweis">${esc(S.ort.hinweis)}</span>` : ''}`
+    ? `${S.ort.gps ? 'Standort' : 'Adresse'}: <b>${esc(S.ort.label)}</b>${S.ort.hinweis ? `<span class="hinweis">${esc(S.ort.hinweis)}</span>` : ''}${ortetGerade ? '<span class="hinweis">Standort wird bestimmt …</span>' : ''}`
     : 'Noch kein Ort gewählt.';
   $('#liste').hidden = S.tab !== 'liste';
   $('#notdienst').hidden = S.tab !== 'notdienst';
@@ -854,18 +856,20 @@ $('#adr-form').addEventListener('submit', async e => {
 
 // Beim ersten Mal die ganze Anleitung, danach nur eine Zeile (aufklappbar) – sie soll die Liste nicht wegschieben
 let letzteHilfe = null;
-function zeigeStandortHilfe(ohneFrage, technik = '', voll = false) {
+function zeigeStandortHilfe(ohneFrage, technik = '', voll = false, kurz = false) {
   letzteHilfe = { ohneFrage, technik };
   let gesehen = false;
   try { gesehen = localStorage.getItem('apotheke.gpsHilfe') === '1'; localStorage.setItem('apotheke.gpsHilfe', '1'); } catch (_) {}
-  if (gesehen && !voll) {
+  if ((gesehen || kurz) && !voll) {
     $('#hilfe').innerHTML = `<div class="hilfe kurz"><b>Standort vom Telefon gesperrt.</b><a href="#" data-aktion="hilfe-auf">Wie freigeben?</a>
       <button type="button" class="zu" data-aktion="hilfe-zu" aria-label="Ausblenden">✕</button></div>`;
     return;
   }
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  const homescreen = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
   const schritte = ios
-    ? `<li>Links in der Safari-Adressleiste auf das Seiten-Symbol tippen → <i>Website-Einstellungen</i> → <i>Standort</i> → <i>Fragen</i> oder <i>Erlauben</i>.</li>
+    ? (homescreen ? '' : `<li><b>Am einfachsten:</b> Teilen → <i>Zum Home-Bildschirm</i>, die App von dort öffnen. Als Home-Bildschirm-App fragt das iPhone eigens nach dem Standort – auch wenn Safari für diese Seite gesperrt ist.</li>`) +
+      `<li>Links in der Safari-Adressleiste auf das Seiten-Symbol tippen → <i>Website-Einstellungen</i> → <i>Standort</i> → <i>Fragen</i> oder <i>Erlauben</i>.</li>
        <li>Ist dort nichts gesperrt: Einstellungen → Datenschutz &amp; Sicherheit → Ortungsdienste → <i>Safari-Websites</i> → <i>Beim Verwenden der App</i>.</li>`
     : `<li>Auf das Symbol links in der Adressleiste tippen → <i>Berechtigungen</i> → <i>Standort</i> → <i>Zulassen</i>.</li>`;
   $('#hilfe').innerHTML = `<div class="hilfe">
@@ -880,15 +884,22 @@ function zeigeStandortHilfe(ohneFrage, technik = '', voll = false) {
 }
 
 $('#gps').addEventListener('click', holeStandort);
-function holeStandort() {
+function holeStandort(still = false) {
+  if (still !== true) still = false;          // als Klick-Handler kommt hier ein Event an
   $('#hilfe').innerHTML = '';
-  if (!navigator.geolocation) { zeigeStatus('Standort wird von diesem Gerät nicht unterstützt.'); return; }
-  zeigeStatus('Bestimme Standort … falls das Telefon fragt: „Erlauben" tippen', true);
+  if (!navigator.geolocation) { if (!still) zeigeStatus('Standort wird von diesem Gerät nicht unterstützt.'); return; }
+  const hatOrt = !!S.ort;
+  if (still && hatOrt) { ortetGerade = true; renderEinst(); }
+  else zeigeStatus('Bestimme Standort … falls das Telefon fragt: „Erlauben" tippen', true);
   const start = Date.now();
   // getCurrentPosition direkt im Tipp aufrufen, ohne vorheriges await – sonst zeigt Safari die Frage womöglich nicht
   navigator.geolocation.getCurrentPosition(async pos => {
     const { latitude: lat, longitude: lon } = pos.coords;
-    S.ort = { lat, lon, plz: '', stadt: '', label: 'wird ermittelt …', address: {}, gps: true };
+    ortetGerade = false;
+    // Beim Start: gleicher Ort wie gemerkt (unter 150 m)? Dann nichts neu laden
+    if (still && S.ort && S.ort.gps && luftlinie(S.ort, { lat, lon }) < 150) { renderEinst(); return; }
+    const alt = S.ort;
+    S.ort = { lat, lon, plz: alt && alt.gps && luftlinie(alt, { lat, lon }) < 2000 ? alt.plz : '', stadt: '', label: 'wird ermittelt …', address: {}, gps: true };
     renderEinst();
     const [o] = await Promise.all([rueckwaerts(lat, lon), laden(true)]);
     if (S.ort && S.ort.lat === lat && S.ort.lon === lon) {
@@ -898,6 +909,14 @@ function holeStandort() {
       speichereEinst(); render();
     }
   }, async err => {
+    ortetGerade = false;
+    if (still) {
+      renderEinst();
+      // Ohne gemerkten Ort braucht es einen Hinweis, sonst bleibt die Seite leer
+      if (err.code === 1) zeigeStandortHilfe(Date.now() - start < 1200, '', false, hatOrt);
+      else if (!hatOrt) $('#status').innerHTML = `<span class="fehler">Standort nicht ermittelbar. Bitte Adresse oder PLZ eingeben.</span>`;
+      return;
+    }
     if (err.code === 1) {
       // Kam die Ablehnung schneller, als ein Mensch tippen kann, hat das Telefon gar nicht gefragt
       const ms = Date.now() - start;
@@ -905,7 +924,8 @@ function holeStandort() {
       let stand = 'unbekannt';
       try { if (navigator.permissions && navigator.permissions.query) stand = (await navigator.permissions.query({ name: 'geolocation' })).state; } catch (_) {}
       $('#status').innerHTML = '';
-      zeigeStandortHilfe(ms < 1200, `Ablehnung nach ${ms} ms · Seiten-Freigabe: ${stand} · „${err.message || '–'}"`);
+      // Bewusster Tipp: immer die ganze Anleitung (beim Start nur die kurze Zeile)
+      zeigeStandortHilfe(ms < 1200, `Ablehnung nach ${ms} ms · Seiten-Freigabe: ${stand} · „${err.message || '–'}"`, true);
       return;
     }
     const t = err.code === 3 ? 'Standort hat zu lange gedauert. Nochmal tippen oder Adresse eingeben.'
@@ -1053,6 +1073,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
 // ---------- Start ----------
 render();
 if (S.ort) laden(true);
+holeStandort(true);           // fragt beim Öffnen direkt nach dem Standort (wie die Standort-Uhr)
 </script>
 </body>
 </html>
