@@ -233,7 +233,7 @@ footer a { color: var(--leise); }
 
 <script>
 'use strict';
-const APP_VERSION = '1.7';
+const APP_VERSION = '1.8';
 
 // ---------- Konstanten ----------
 const OH_URL = 'https://cdn.jsdelivr.net/npm/opening_hours@3.15.0/+esm';
@@ -658,8 +658,14 @@ function render() {
 }
 
 function aponetLink(anker = false) {
-  // #pharmacy-search-result = aponets eigene Ergebnisliste (geprüft 08.11.): überspringt Kopf, Karte und zwei leere Werbeplätze
-  if (S.ort && S.ort.plz) return 'https://www.aponet.de/notdienstsuche/' + encodeURIComponent(S.ort.plz) + (anker ? '#pharmacy-search-result' : '');
+  // #pharmacy-search-result = aponets eigene Ergebnisliste (geprüft 08.11.): überspringt Kopf, Karte und zwei leere Werbeplätze.
+  // Adresse „PLZ-Ort" statt nur „PLZ": aponet leitet „/35435" auf „/35435-Wettenberg" um; ohne Umleitung kennt die App
+  // die genaue Adresse des Rahmens und kann später erneut zur Liste springen. Der Ort muss echt sein
+  // („35435-Irgendwas" findet nichts, „35435-Wißmar" und „10178-Mitte" schon – geprüft 08.11.).
+  if (S.ort && S.ort.plz) {
+    const ort = (S.ort.stadt || '').trim().replace(/\s+/g, '-');
+    return 'https://www.aponet.de/notdienstsuche/' + encodeURIComponent(S.ort.plz) + (ort ? '-' + encodeURIComponent(ort) : '') + (anker ? '#pharmacy-search-result' : '');
+  }
   return 'https://www.aponet.de/apotheke/notdienstsuche';
 }
 
@@ -835,7 +841,27 @@ function rahmenAktualisieren() {
   box.innerHTML = `<iframe src="${esc(url)}" title="Notdienst-Apotheken auf aponet.de" referrerpolicy="strict-origin-when-cross-origin"
     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-to-custom-protocols"></iframe>
     <div class="quelle">Inhalt: aponet.de – Gesundheitsportal der deutschen Apothekerinnen und Apotheker</div>`;
+  // Auf dem iPhone wachsen über der Liste nach dem Sprung noch Werbeplätze und schieben sie nach unten
+  // (Safari gleicht das nicht aus). Deshalb nach dem Laden noch dreimal zur Liste springen. Bei gleicher
+  // Adresse ist das nur ein Sprung innerhalb der Seite, kein Neuladen (geprüft 08.11.: Liste danach direkt
+  // unter aponets Kopf). Solange aponets Zustimmungsabfrage offen ist, lässt sich deren Seite nicht scrollen.
+  // Der erste Tipp in den Rahmen ist meist „Zustimmen“: danach noch zweimal springen, dann nie wieder.
+  const fr = box.querySelector('iframe');
+  if (/#/.test(url) && /notdienstsuche\/\d{5}-/.test(url)) {
+    const springe = liste => liste.forEach(ms => sprungTimer.push(setTimeout(() => { if (fr.isConnected) fr.src = url; }, ms)));
+    fr.addEventListener('load', () => {
+      sprungTimer.forEach(clearTimeout); sprungTimer = [];
+      springe([1500, 3500, 6000]);
+      const geladen = Date.now();
+      const ersterTipp = () => {
+        window.removeEventListener('blur', ersterTipp);
+        if (Date.now() - geladen < 20000 && document.activeElement === fr) springe([1000, 3000]);
+      };
+      window.addEventListener('blur', ersterTipp);
+    }, { once: true });
+  }
 }
+let sprungTimer = [];
 
 // ---------- Ereignisse ----------
 $('#adr-form').addEventListener('submit', async e => {

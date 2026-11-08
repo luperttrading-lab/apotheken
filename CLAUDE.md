@@ -43,7 +43,13 @@ Eine Datei `index.html` (HTML, CSS, JS), dazu `sw.js`, `manifest.webmanifest`, I
   vermutlich bei jedem Öffnen erneut.
   Ab v1.7 öffnet der Rahmen mit Sprungmarke `#pharmacy-search-result` (aponets Ergebnisliste; bleibt über die
   301-Weiterleitung erhalten) und ist bildschirmhoch. Die weißen Lücken auf aponet sind leere Werbeplätze
-  (`div-gpt-ad … adslot`), in fremden Rahmen nicht entfernbar; die Sprungmarke überspringt die zwei großen. Filter „Heute noch offen“ heißt seit v1.5 „Jetzt oder später“
+  (`div-gpt-ad … adslot`), in fremden Rahmen nicht entfernbar; die Sprungmarke überspringt die zwei großen.
+  Ab v1.8: Rahmen-Adresse `notdienstsuche/<PLZ>-<Ort>` (Ort = Gemeinde aus Nominatim; „PLZ-Irgendwas“ findet
+  nichts, echte Ortsteile schon) – ohne aponets 301-Umleitung kennt die App die Rahmen-Adresse. Auf dem iPhone
+  wuchsen Werbeplätze nach dem Sprung und schoben die Liste weg (Screenshot 08.11. 20:07); daher springt die App
+  1,5/3,5/6 s nach dem Laden und 1/3 s nach dem ersten Tipp in den Rahmen (meist „Zustimmen“) erneut, indem sie
+  dieselbe Adresse setzt (= Sprung innerhalb der Seite, kein Neuladen). Solange aponets Zustimmungsabfrage offen
+  ist, lässt sich deren Seite nicht scrollen. Filter „Heute noch offen“ heißt seit v1.5 „Jetzt oder später“
   (= jetzt offen oder öffnet heute noch).
 
 ## Startverhalten (ab v1.6, Wunsch des Nutzers 08.11.)
