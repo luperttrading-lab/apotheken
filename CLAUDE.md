@@ -31,6 +31,7 @@ Eine Datei `index.html` (HTML, CSS, JS), dazu `sw.js`, `manifest.webmanifest`, I
   keine Feiertage; verkürzte Zeiten kennt OpenStreetMap meist nicht.
 - Sortierung „Nächste Öffnung“ (ab v1.15) stellt den Filter auf „Alle“, damit auch Apotheken erscheinen, die erst
   am Montag oder nach Feiertagen öffnen (Wunsch 08.11.); Test 24.12. 19:00 → „Öffnet Mo 07:00“ (28.12.).
+  Ab v1.16 auch beim Start: Die Sortierung wird gemerkt, der Startfilter „Jetzt offen“ machte die Liste sonst leer.
 - Adresssuche/Rückwärtssuche: Nominatim (max. 1 Anfrage/s, nur auf Absenden).
   Nur ein Ortsname („München“) liefert bei Nominatim keine PLZ (addresstype city) → ab v1.9 PLZ per
   Rückwärtssuche am Ortsmittelpunkt (München → 80331, Hamburg → 20095); ohne PLZ zeigte aponet nur die leere Suche.

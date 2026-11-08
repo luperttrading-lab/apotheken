@@ -242,7 +242,7 @@ footer a { color: var(--leise); }
 
 <script>
 'use strict';
-const APP_VERSION = '1.15';
+const APP_VERSION = '1.16';
 
 // ---------- Konstanten ----------
 const OH_URL = 'https://cdn.jsdelivr.net/npm/opening_hours@3.15.0/+esm';
@@ -1185,6 +1185,8 @@ versionEl.addEventListener('click', () => checkForUpdate(true));
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 
 // ---------- Start ----------
+// Gemerkte Sortierung „Nächste Öffnung“: Filter gleich auf „Alle“, sonst bleibt die Liste nachts und sonntags leer
+if (S.sort === 'naechste') { S.filter = 'alle'; filterAutomatisch = true; }
 render();
 if (S.ort) laden(true);
 holeStandort(true);           // fragt beim Öffnen direkt nach dem Standort (wie die Standort-Uhr)
