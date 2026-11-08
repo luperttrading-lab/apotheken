@@ -128,7 +128,8 @@ input[type=range] { width: 100%; margin: 10px 0 2px; accent-color: var(--gruen);
 .knopf.rot { background: var(--rot); color: #fff; font-weight: 600; }
 .knopf.rot-hell { background: var(--rot-hell); color: var(--rot); }
 .klein { font-size: 13px; color: var(--leise); }
-.nd-rahmen iframe { display: block; width: 100%; height: 72vh; min-height: 440px; border: 1px solid var(--linie); border-radius: 14px; background: #fff; }
+.nd-rahmen iframe { display: block; width: 100%; height: 86vh; height: calc(100dvh - 70px); min-height: 440px; border: 1px solid var(--linie); border-radius: 14px; background: #fff; }
+.nd-titel { font-size: 18px; color: var(--rot); margin: 6px 4px 8px; }
 .nd-rahmen .quelle { font-size: 12px; color: var(--leise); margin: 4px 4px 0; }
 footer { font-size: 12px; color: var(--leise); margin-top: 24px; text-align: center; line-height: 1.6; }
 footer a { color: var(--leise); }
@@ -232,7 +233,7 @@ footer a { color: var(--leise); }
 
 <script>
 'use strict';
-const APP_VERSION = '1.6';
+const APP_VERSION = '1.7';
 
 // ---------- Konstanten ----------
 const OH_URL = 'https://cdn.jsdelivr.net/npm/opening_hours@3.15.0/+esm';
@@ -656,8 +657,9 @@ function render() {
   renderListe();
 }
 
-function aponetLink() {
-  if (S.ort && S.ort.plz) return 'https://www.aponet.de/notdienstsuche/' + encodeURIComponent(S.ort.plz);
+function aponetLink(anker = false) {
+  // #pharmacy-search-result = aponets eigene Ergebnisliste (geprüft 08.11.): überspringt Kopf, Karte und zwei leere Werbeplätze
+  if (S.ort && S.ort.plz) return 'https://www.aponet.de/notdienstsuche/' + encodeURIComponent(S.ort.plz) + (anker ? '#pharmacy-search-result' : '');
   return 'https://www.aponet.de/apotheke/notdienstsuche';
 }
 
@@ -806,15 +808,11 @@ function renderNotdienst() {
     const R = S.radius * 1000;
     rund = apos.filter(p => p.luft <= R && ohVon(p) && tagInfo(p, tagAnfang(now))?.rund).sort((a, b) => a.luft - b.luft);
   }
-  $('#nd-kopf').innerHTML = `
-    <div class="karte notdienst">
-      <h2>🌙 Notdienst${ortText ? ' für ' + esc(ortText.trim()) : ''}</h2>
-      <p class="klein">Offizielle Liste von aponet.de (Bundesapothekerkammer), hier eingebettet. Die App liest sie nicht aus – deshalb sind die Notdienste in der Apothekenliste nicht markiert.</p>
-      <p class="klein">aponet fragt zuerst nach Zustimmung zu Werbung. Eingebettet merkt sich das iPhone die Wahl vermutlich nicht – in Safari schon: <a href="${aponetLink()}" target="_blank" rel="noopener">in Safari öffnen</a>.</p>
-    </div>`;
+  $('#nd-kopf').innerHTML = `<h2 class="nd-titel">🌙 Notdienst${ortText ? ' für ' + esc(ortText.trim()) : ''}</h2>`;
   $('#nd-rest').innerHTML = `
     <div class="karte notdienst">
-      <a class="knopf rot" href="${aponetLink()}" target="_blank" rel="noopener">In Safari öffnen</a>
+      <p class="klein">Offizielle Liste von aponet.de (Bundesapothekerkammer), oben eingebettet. Die App liest sie nicht aus – deshalb sind die Notdienste in der Apothekenliste nicht markiert. Weiße Lücken darin sind leere Werbeplätze von aponet; an deren Seite kann die App nichts ändern. aponet fragt zuerst nach Zustimmung zu Werbung; eingebettet merkt sich das iPhone die Wahl vermutlich nicht, in Safari schon.</p>
+      <a class="knopf rot" href="${aponetLink(true)}" target="_blank" rel="noopener">In Safari öffnen</a>
       <a class="knopf rot-hell" href="tel:08000022833">📞 0800 00 22833 – Festnetz, kostenlos</a>
       <a class="knopf rot-hell" href="tel:22833">📱 22833 – vom Handy (max. 69 ct/Min.)</a>
       <p class="klein">Im Notdienst kann die Apotheke eine Notdienstgebühr von 2,50 € berechnen.</p>
@@ -825,10 +823,13 @@ function renderNotdienst() {
 // Die aponet-Seite erst laden, wenn der Reiter offen ist, und nur neu laden, wenn sich der Ort ändert.
 // sandbox ohne allow-top-navigation: die eingebettete Seite kann die App nicht wegnavigieren.
 let rahmenUrl = null;
+function zumRahmen() {
+  requestAnimationFrame(() => window.scrollTo({ top: $('#nd-kopf').getBoundingClientRect().top + window.scrollY - 6, behavior: 'smooth' }));
+}
 function rahmenAktualisieren() {
   const box = $('#nd-rahmen');
   if (S.tab !== 'notdienst') return;
-  const url = aponetLink();
+  const url = aponetLink(true);
   if (url === rahmenUrl && box.querySelector('iframe')) return;
   rahmenUrl = url;
   box.innerHTML = `<iframe src="${esc(url)}" title="Notdienst-Apotheken auf aponet.de" referrerpolicy="strict-origin-when-cross-origin"
@@ -961,6 +962,7 @@ $('#unbekannt').addEventListener('change', e => { S.unbekannt = e.target.checked
 $('#reiter').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   S.tab = b.dataset.tab; speichereEinst(); renderEinst();
+  if (S.tab === 'notdienst') zumRahmen();
 });
 
 document.addEventListener('click', e => {
@@ -972,7 +974,7 @@ document.addEventListener('click', e => {
   else if (was === 'hilfe-auf') { e.preventDefault(); if (letzteHilfe) zeigeStandortHilfe(letzteHilfe.ohneFrage, letzteHilfe.technik, true); }
   else if (was === 'adresse') { $('#hilfe').innerHTML = ''; const f = $('#adr'); f.focus(); f.select(); }
   else if (was === 'mehr') { anzahl += SEITE; renderListe(); }
-  else if (was === 'notdienst') { e.preventDefault(); S.tab = 'notdienst'; speichereEinst(); renderEinst(); window.scrollTo({ top: $('#reiter').offsetTop - 10, behavior: 'smooth' }); }
+  else if (was === 'notdienst') { e.preventDefault(); S.tab = 'notdienst'; speichereEinst(); renderEinst(); zumRahmen(); }
   else if (was === 'woche') {
     const art = a.closest('.apo'), w = art.querySelector('.woche');
     const p = apos.find(x => x.id === art.dataset.id);

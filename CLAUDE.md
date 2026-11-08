@@ -40,7 +40,10 @@ Eine Datei `index.html` (HTML, CSS, JS), dazu `sw.js`, `manifest.webmanifest`, I
   Ab v1.5 ist die aponet-Seite im Notdienst-Reiter eingebettet (`iframe`, erst beim Öffnen des Reiters geladen,
   `sandbox` ohne Top-Navigation). aponet sendet weder CORS- noch Frame-Sperre (geprüft 08.11.). Davor steht deren
   Zustimmungsabfrage („Kostenfrei mit Werbung“); Safari speichert Cookies eingebetteter Seiten nicht, daher
-  vermutlich bei jedem Öffnen erneut. Filter „Heute noch offen“ heißt seit v1.5 „Jetzt oder später“
+  vermutlich bei jedem Öffnen erneut.
+  Ab v1.7 öffnet der Rahmen mit Sprungmarke `#pharmacy-search-result` (aponets Ergebnisliste; bleibt über die
+  301-Weiterleitung erhalten) und ist bildschirmhoch. Die weißen Lücken auf aponet sind leere Werbeplätze
+  (`div-gpt-ad … adslot`), in fremden Rahmen nicht entfernbar; die Sprungmarke überspringt die zwei großen. Filter „Heute noch offen“ heißt seit v1.5 „Jetzt oder später“
   (= jetzt offen oder öffnet heute noch).
 
 ## Startverhalten (ab v1.6, Wunsch des Nutzers 08.11.)
