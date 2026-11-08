@@ -233,7 +233,7 @@ footer a { color: var(--leise); }
 
 <script>
 'use strict';
-const APP_VERSION = '1.8';
+const APP_VERSION = '1.9';
 
 // ---------- Konstanten ----------
 const OH_URL = 'https://cdn.jsdelivr.net/npm/opening_hours@3.15.0/+esm';
@@ -346,6 +346,13 @@ async function sucheAdresse(q) {
     const n = i === 0 ? treffer[0] : treffer.find(t => t.address && t.address.postcode === plz);
     if (!n) continue;
     const o = ortAus(n);
+    // Nur ein Ortsname („München") liefert bei Nominatim keine PLZ – die braucht der Notdienst (aponet).
+    // Dann die PLZ am Ortsmittelpunkt nachschlagen (München -> 80331).
+    if (!o.plz) {
+      await new Promise(ok => setTimeout(ok, 1100));
+      const r = await rueckwaerts(o.lat, o.lon);
+      if (r.plz) o.plz = r.plz;
+    }
     if (i) o.hinweis = liste[i] === plz
       ? 'Straße nicht gefunden – Mitte der PLZ ' + plz + ' verwendet.'
       : 'Ortsname nicht erkannt – gefunden über Straße und PLZ.';
@@ -666,6 +673,8 @@ function aponetLink(anker = false) {
     const ort = (S.ort.stadt || '').trim().replace(/\s+/g, '-');
     return 'https://www.aponet.de/notdienstsuche/' + encodeURIComponent(S.ort.plz) + (ort ? '-' + encodeURIComponent(ort) : '') + (anker ? '#pharmacy-search-result' : '');
   }
+  // Ohne PLZ (alter gespeicherter Ort): aponet leitet „/München" selbst auf „/80331-München" um
+  if (S.ort && S.ort.stadt) return 'https://www.aponet.de/notdienstsuche/' + encodeURIComponent(S.ort.stadt.trim()) + (anker ? '#pharmacy-search-result' : '');
   return 'https://www.aponet.de/apotheke/notdienstsuche';
 }
 
