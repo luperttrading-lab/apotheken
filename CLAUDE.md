@@ -64,6 +64,13 @@ Eine Datei `index.html` (HTML, CSS, JS), dazu `sw.js`, `manifest.webmanifest`, I
   Safari-Freigabe gilt je Domain, die Home-Bildschirm-App hat eine eigene → Nutzer soll die App vom
   Home-Bildschirm öffnen. Die Hilfekarte nennt das als ersten Schritt (nur außerhalb des Home-Bildschirms).
 
+## Anzeige nach Sortierung (ab v1.10, Wunsch 08.11.)
+
+Oben rechts in der Karte steht der Wert, nach dem sortiert ist (`sortBadge`): „Schließt 20:00“, „Öffnet 07:00“,
+„3,5 km“ (blau), „9 min Auto“; der Jetzt-Status rückt dann in eine Zeile „Jetzt: …“. Derselbe Wert ist im Text
+gelb markiert (`mark.sortwert`). Bei „Empfohlen“, „Nächste Öffnung“ und „Name“ bleibt der normale Status.
+Die Versionsprüfung vergleicht nur auf „anders“ – „1.10“ nach „1.9“ ist deshalb in Ordnung.
+
 ## Testen
 
 Playwright mit iPhone-Maßen und simuliertem Standort. In der Cloud-Sandbox blockiert der Proxy

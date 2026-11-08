@@ -16,13 +16,13 @@
 :root {
   --bg: #f4f6f5; --karte: #fff; --text: #16201b; --leise: #5d6b63; --linie: #dde3df;
   --gruen: #16804a; --gruen-hell: #e3f4ea; --gelb: #8a5200; --gelb-hell: #fff1d6;
-  --rot: #c8102e; --rot-hell: #fde7ea; --grau-hell: #eceeed; --blau: #0a64c8;
+  --rot: #c8102e; --rot-hell: #fde7ea; --grau-hell: #eceeed; --blau: #0a64c8; --blau-hell: #e6f0fb;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0f1412; --karte: #1a211d; --text: #e8efe9; --leise: #9aa8a0; --linie: #2b3530;
     --gruen: #3ccf7f; --gruen-hell: #173626; --gelb: #ffc35a; --gelb-hell: #3a2c12;
-    --rot: #ff6b7f; --rot-hell: #3d1a20; --grau-hell: #262e2a; --blau: #6cb0ff;
+    --rot: #ff6b7f; --rot-hell: #3d1a20; --grau-hell: #262e2a; --blau: #6cb0ff; --blau-hell: #14273d;
   }
 }
 * { box-sizing: border-box; }
@@ -104,6 +104,11 @@ input[type=range] { width: 100%; margin: 10px 0 2px; accent-color: var(--gruen);
 .badge.gelb { background: var(--gelb-hell); color: var(--gelb); }
 .badge.grau { background: var(--grau-hell); color: var(--leise); }
 .badge.rot { background: var(--rot-hell); color: var(--rot); }
+.badge.blau { background: var(--blau-hell); color: var(--blau); }
+.apo .jetzt { font-size: 13px; font-weight: 600; margin-top: 3px; }
+.apo .jetzt.gruen { color: var(--gruen); } .apo .jetzt.gelb { color: var(--gelb); }
+.apo .jetzt.rot { color: var(--rot); } .apo .jetzt.grau { color: var(--leise); }
+mark.sortwert { background: var(--gelb-hell); color: var(--text); font-weight: 700; border-radius: 5px; padding: 0 4px; }
 .apo .dist { font-size: 14px; color: var(--leise); margin-top: 4px; font-variant-numeric: tabular-nums; }
 .apo .dist b { color: var(--text); }
 .apo .adr { font-size: 14px; margin-top: 2px; }
@@ -233,7 +238,7 @@ footer a { color: var(--leise); }
 
 <script>
 'use strict';
-const APP_VERSION = '1.9';
+const APP_VERSION = '1.10';
 
 // ---------- Konstanten ----------
 const OH_URL = 'https://cdn.jsdelivr.net/npm/opening_hours@3.15.0/+esm';
@@ -564,6 +569,43 @@ function tagText(t) {
     return hhmm(x.von) + '–' + bis + (x.unsicher ? ' (?)' : '') + (x.kommentar ? ' „' + x.kommentar + '"' : '');
   }).join(', ');
 }
+// Wie tagText, aber als HTML: markiert den ersten Beginn ('start') oder das letzte Ende ('ende') des Tages
+function endeText(bis, t) { return bis >= t.D2 ? 'open end' : hhmm(bis) + (bis > t.D1 ? ' (Folgetag)' : ''); }
+function tagHtml(t, mark) {
+  if (!t) return '';
+  if (t.rund || !t.iv.length) return esc(tagText(t));
+  const m = x => `<mark class="sortwert">${esc(x)}</mark>`;
+  const letzte = t.iv.reduce((a, x) => x.bis > a.bis ? x : a, t.iv[0]);
+  return t.iv.map((x, i) => {
+    const von = mark === 'start' && i === 0 ? m(hhmm(x.von)) : esc(hhmm(x.von));
+    const bis = mark === 'ende' && x === letzte ? m(endeText(x.bis, t)) : esc(endeText(x.bis, t));
+    return von + '–' + bis + esc((x.unsicher ? ' (?)' : '') + (x.kommentar ? ' „' + x.kommentar + '"' : ''));
+  }).join(', ');
+}
+// Oben rechts steht, wonach sortiert ist; null = normaler Status (offen bis / öffnet …)
+function sortBadge(p, now, heute, fahrt) {
+  const t = p._t, j = p._j;
+  const farbe = () => heute ? (j && j.offen ? 'gruen' : t.iv.some(x => x.von > now) ? 'gelb' : 'grau') : 'gruen';
+  switch (S.sort) {
+    case 'schliesst':
+      if (!t) return null;
+      if (t.rund) return ['gruen', '24 h geöffnet'];
+      if (!t.offen) return ['grau', 'Geschlossen'];
+      return heute && t.letzt <= now ? ['grau', 'Schloss ' + hhmm(t.letzt)] : [farbe(), 'Schließt ' + endeText(t.letzt, t)];
+    case 'oeffnet':
+      if (!t) return null;
+      if (t.rund) return ['gruen', '24 h geöffnet'];
+      if (!t.offen) return ['grau', 'Geschlossen'];
+      if (heute && t.erst <= now) return j && j.offen ? ['gruen', 'Offen seit ' + hhmm(t.erst)] : ['grau', 'Öffnete ' + hhmm(t.erst)];
+      return [farbe(), 'Öffnet ' + hhmm(t.erst)];
+    case 'entfernung':
+      return ['blau', kmText(fahrt && p.fahrtM != null ? p.fahrtM : p.luft)];
+    case 'fahrzeit':
+      return p.fahrtS != null ? ['blau', minText(p.fahrtS) + ' Auto'] : null;
+  }
+  return null;
+}
+
 function jetztInfo(p, now) {
   const oh = ohVon(p);
   if (!oh) return null;
@@ -678,10 +720,10 @@ function aponetLink(anker = false) {
   return 'https://www.aponet.de/apotheke/notdienstsuche';
 }
 
-function distText(p, fahrt) {
-  const luft = `<b>${kmText(p.luft)}</b> Luftlinie`;
-  if (fahrt && p.fahrtM != null) return `<b>${kmText(p.fahrtM)}</b> Fahrt · <b>${minText(p.fahrtS)}</b> Auto · ${kmText(p.luft)} Luftlinie`;
-  return luft;
+function distText(p, fahrt, mark = null) {
+  const hl = (x, an) => an ? `<mark class="sortwert">${x}</mark>` : `<b>${x}</b>`;
+  if (fahrt && p.fahrtM != null) return `${hl(kmText(p.fahrtM), mark === 'km')} Fahrt · ${hl(minText(p.fahrtS), mark === 'min')} Auto · ${kmText(p.luft)} Luftlinie`;
+  return `${hl(kmText(p.luft), mark === 'km')} Luftlinie`;
 }
 
 function routeLink(p) {
@@ -691,19 +733,24 @@ function routeLink(p) {
     : `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}`;
 }
 
-function karte(p, now, D0, fahrt) {
+function karte(p, now, D0, fahrt, nachSortierung = true) {
   const j = p._j, t = p._t;
+  const heute = D0.getTime() === tagAnfang(now).getTime();
   const [farbe, text] = badge(j, now);
+  // Wonach sortiert ist, steht oben rechts und ist im Text markiert; der Jetzt-Status rückt dann in eine eigene Zeile
+  const sb = nachSortierung ? sortBadge(p, now, heute, fahrt) : null;
+  const mark = !nachSortierung ? null : { schliesst: 'ende', oeffnet: 'start', entfernung: 'km', fahrzeit: 'min' }[S.sort] || null;
   const zu = j && !j.offen;
   const tagName = S.tagOffset === 0 ? 'Heute' : datumKurz(D0);
-  const zeiten = t ? `<div class="zeiten"><b>${esc(tagName)}:</b> ${esc(tagText(t))}</div>`
+  const zeiten = t ? `<div class="zeiten"><b>${esc(tagName)}:</b> ${tagHtml(t, mark)}</div>`
     : p.ohText ? `<div class="zeiten klein">Öffnungszeiten: ${esc(p.ohText)}</div>`
     : `<div class="zeiten klein">Keine Öffnungszeiten hinterlegt – bitte anrufen.</div>`;
   const tel = p.tel ? `<a class="knopf" href="tel:${esc(p.tel.replace(/[^\d+]/g, ''))}">Anrufen</a>` : '';
   const web = p.web ? `<a class="knopf" href="${esc(p.web)}" target="_blank" rel="noopener">Website</a>` : '';
   return `<article class="apo${zu ? ' zu' : ''}" data-id="${esc(p.id)}">
-    <div class="kopf"><h3>${esc(p.name)}</h3><span class="badge ${farbe}">${esc(text)}</span></div>
-    <div class="dist">${distText(p, fahrt)}</div>
+    <div class="kopf"><h3>${esc(p.name)}</h3><span class="badge ${sb ? sb[0] : farbe}">${esc(sb ? sb[1] : text)}</span></div>
+    ${sb ? `<div class="jetzt ${farbe}">Jetzt: ${esc(text)}</div>` : ''}
+    <div class="dist">${distText(p, fahrt, mark)}</div>
     ${p.adresse ? `<div class="adr">${esc(p.adresse)}</div>` : ''}
     ${zeiten}
     <div class="aktionen">${tel}<a class="knopf" href="${routeLink(p)}" target="_blank" rel="noopener">Route</a>${web}<button type="button" data-aktion="woche">Woche ▾</button></div>
@@ -832,7 +879,7 @@ function renderNotdienst() {
       <a class="knopf rot-hell" href="tel:22833">📱 22833 – vom Handy (max. 69 ct/Min.)</a>
       <p class="klein">Im Notdienst kann die Apotheke eine Notdienstgebühr von 2,50 € berechnen.</p>
     </div>
-    ${rund.length ? `<div class="abschnitt">Laut Angabe rund um die Uhr geöffnet (${rund.length})</div>` + rund.map(p => karte(p, now, tagAnfang(now), false)).join('') : ''}`;
+    ${rund.length ? `<div class="abschnitt">Laut Angabe rund um die Uhr geöffnet (${rund.length})</div>` + rund.map(p => karte(p, now, tagAnfang(now), false, false)).join('') : ''}`;
 }
 
 // Die aponet-Seite erst laden, wenn der Reiter offen ist, und nur neu laden, wenn sich der Ort ändert.
