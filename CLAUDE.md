@@ -75,8 +75,15 @@ sein, nicht als kleine graue Zeile. Umgesetzt ab v1.14 als grüner Kasten „Suc
 
 ## Startverhalten (ab v1.6, Wunsch des Nutzers 08.11.)
 
-- Jeder Start: 10 km, Fahrstrecke, Filter „Jetzt offen“, Apotheken ohne Zeitangabe ausgeblendet, Reiter Apotheken,
-  Tag Heute. Gemerkt werden nur letzter Ort (Rückfall) und Sortierung.
+- Jeder Start: 10 km, Fahrstrecke, Filter **„Alle“** (ab v1.17, vorher „Jetzt offen“ – lieferte nachts und
+  sonntags leere Listen), Apotheken ohne Zeitangabe ausgeblendet, Reiter Apotheken, Tag Heute. Gemerkt werden nur
+  letzter Ort (Rückfall) und Sortierung.
+- Grundsatz ab v1.17 (Wunsch 09.11.): erst alles zeigen, die Liste sagt, wer wann offen hat; Filter grenzen nur ein.
+  Filterknöpfe tragen die Trefferzahl („Jetzt offen (0)“). Bei „Empfohlen“ und „Nächste Öffnung“
+  Zwischenüberschriften nach `gruppe()`: „Jetzt geöffnet“, „Öffnet heute noch“, „Öffnet morgen (Mo 9.11.)“,
+  „Öffnet Mo 16.11.“ …; „Empfohlen“ sortiert nach diesem Rang, je Gruppe nach Entfernung. Offene Karten grüner Rand.
+- Hat heute im Umkreis nichts offen: Hinweis mit der nächsten jetzt geöffneten Apotheke bis 50 km Luftlinie
+  (Kacheln), Knopf „Umkreis auf X km“ (Fahrstrecke grob 1,4 × Luftlinie, max. 30) und Route; sonst Notdienst-Knopf.
 - Beim Öffnen wird sofort geortet (`holeStandort(true)`, wie die Standort-Uhr); der gemerkte Ort wird parallel
   gezeigt und durch den Standort ersetzt, sobald er da ist. Fehler beim Start: nur einzeilige Hilfe.
 - Ortung in Safari sofort abgelehnt, in der Standort-Uhr (gleiche Domain luperttrading-lab.github.io) gefragt:

@@ -102,6 +102,11 @@ input[type=range] { width: 100%; margin: 10px 0 2px; accent-color: var(--gruen);
 }
 .apo { background: var(--karte); border: 1px solid var(--linie); border-radius: 16px; padding: 12px; margin: 8px 0; }
 .apo.zu { opacity: .78; }
+.apo.offen { border-left: 5px solid var(--gruen); }
+.tipp { background: var(--gelb-hell); border-color: transparent; }
+.tipp p { margin: 6px 0; font-size: 15px; }
+.tipp .knoepfe { display: flex; gap: 8px; margin-top: 8px; }
+.tipp .knoepfe > * { flex: 1; font-size: 15px; padding: 9px 10px; }
 .apo .kopf { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .apo h3 { font-size: 17px; margin: 0; line-height: 1.25; }
 .badge { flex: none; font-size: 13px; font-weight: 600; border-radius: 999px; padding: 4px 9px; white-space: nowrap; }
@@ -242,7 +247,7 @@ footer a { color: var(--leise); }
 
 <script>
 'use strict';
-const APP_VERSION = '1.16';
+const APP_VERSION = '1.17';
 
 // ---------- Konstanten ----------
 const OH_URL = 'https://cdn.jsdelivr.net/npm/opening_hours@3.15.0/+esm';
@@ -266,7 +271,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 // ---------- Zustand ----------
 // Bei jedem Start: 10 km Fahrstrecke, nur jetzt geöffnete, ohne Apotheken ohne Zeitangabe (Wunsch 08.11.).
 // Gemerkt werden nur der letzte Ort (Rückfall, falls die Ortung nicht klappt) und die Sortierung.
-const STANDARD = { radius: 10, modus: 'fahrt', filter: 'jetzt', unbekannt: false, tab: 'liste' };
+const STANDARD = { radius: 10, modus: 'fahrt', filter: 'alle', unbekannt: false, tab: 'liste' };   // ab v1.17: erst alles zeigen, dann eingrenzen
 const gemerkt = ladeEinst();
 const S = Object.assign({ ort: gemerkt.ort || null, sort: gemerkt.sort || 'empfohlen' }, STANDARD);
 S.tagOffset = 0;              // startet immer mit „Heute"
@@ -780,7 +785,7 @@ function karte(p, now, D0, fahrt, nachSortierung = true) {
     : `<div class="zeiten klein">Keine Öffnungszeiten hinterlegt – bitte anrufen.</div>`;
   const tel = p.tel ? `<a class="knopf" href="tel:${esc(p.tel.replace(/[^\d+]/g, ''))}">Anrufen</a>` : '';
   const web = p.web ? `<a class="knopf" href="${esc(p.web)}" target="_blank" rel="noopener">Website</a>` : '';
-  return `<article class="apo${zu ? ' zu' : ''}" data-id="${esc(p.id)}">
+  return `<article class="apo${zu ? ' zu' : ''}${j && j.offen ? ' offen' : ''}" data-id="${esc(p.id)}">
     <div class="kopf"><h3>${esc(p.name)}</h3><span class="badge ${sb ? sb[0] : farbe}">${esc(sb ? sb[1] : text)}</span></div>
     ${sb ? `<div class="jetzt ${farbe}">Jetzt: ${esc(text)}</div>` : ''}
     <div class="dist">${distText(p, fahrt, mark)}</div>
@@ -806,7 +811,22 @@ function wochenplan(p) {
     <div class="roh"><a href="https://www.openstreetmap.org/${esc(p.id)}" target="_blank" rel="noopener">Angaben falsch? In OpenStreetMap ansehen</a></div>`;
 }
 
-function sortiere(liste, now, heute, fahrt) {
+// Verfügbarkeit einer Apotheke: Rang für „Empfohlen“ und Text für die Zwischenüberschriften der Liste
+function gruppe(p, now, heute, D0) {
+  const j = p._j, t = p._t;
+  if (!heute) {
+    const tag = datumKurz(D0);
+    return t && t.offen ? { rang: 0, text: `Am ${tag} geöffnet` } : { rang: 1, text: `Am ${tag} geschlossen` };
+  }
+  if (!j) return { rang: 9999, text: 'Ohne Angabe' };
+  if (j.offen) return { rang: (j.naechste && j.naechste - now < 15 * 6e4) ? 1 : 0, text: 'Jetzt geöffnet' };
+  if (t && t.iv.some(x => x.von > now)) return { rang: 2, text: 'Öffnet heute noch' };
+  if (!j.naechste) return { rang: 9000, text: 'Keine Öffnung bekannt' };
+  const tage = Math.round((tagAnfang(j.naechste) - tagAnfang(now)) / 864e5);
+  return { rang: 2 + tage, text: tage === 1 ? 'Öffnet morgen (' + datumKurz(j.naechste) + ')' : 'Öffnet ' + datumKurz(j.naechste) };
+}
+
+function sortiere(liste, now, heute, fahrt, D0 = plusTage(tagAnfang(now), S.tagOffset)) {
   const dist = p => (fahrt && p.fahrtM != null) ? p.fahrtM : p.luft;
   const nachDist = (a, b) => dist(a) - dist(b);
   const INF = Number.POSITIVE_INFINITY;
@@ -824,22 +844,49 @@ function sortiere(liste, now, heute, fahrt) {
       key = p => p._t && p._t.letzt ? -p._t.letzt.getTime() : INF; break;
     case 'naechste':
       key = p => !p._j ? INF : p._j.offen ? -(p._j.naechste ? p._j.naechste.getTime() : 8.64e15) / 1e16 : p._j.naechste ? p._j.naechste - now : INF; break;
-    default: // empfohlen
-      key = p => {
-        if (heute) {
-          const j = p._j;
-          if (!j) return 4;
-          if (j.offen) return (j.naechste && j.naechste - now < 15 * 6e4) ? 1 : 0;
-          return p._t && p._t.iv.some(x => x.von > now) ? 2 : 3;
-        }
-        return p._t ? (p._t.offen ? 0 : 3) : 4;
-      };
+    default: // empfohlen: erst wer jetzt offen hat, dann wer heute noch, dann nach Tag der nächsten Öffnung; je Gruppe nach Entfernung
+      key = p => gruppe(p, now, heute, D0).rang;
   }
   return liste.sort((a, b) => {
     const ka = key(a), kb = key(b);
     if (ka !== kb) return ka === INF ? 1 : kb === INF ? -1 : ka - kb;
     return nachDist(a, b);
   });
+}
+
+// Hat im Umkreis nichts offen: die nächste jetzt geöffnete Apotheke im Umkreis von 50 km (Luftlinie) suchen
+let naechsteOffene = null;
+const naechsteKey = () => S.ort ? S.ort.lat.toFixed(4) + ',' + S.ort.lon.toFixed(4) + ',' + Math.floor(Date.now() / 3e5) : '';
+async function sucheNaechsteOffene() {
+  const key = naechsteKey();
+  if (naechsteOffene && naechsteOffene.key === key) return;
+  naechsteOffene = { key, laeuft: true };
+  try {
+    const els = await holeAusKacheln(S.ort.lat, S.ort.lon, 50000);
+    const now = new Date();
+    let best = null;
+    if (els) for (const p of aufbereiten(els, S.ort)) {
+      if (p.luft > 50000 || (best && p.luft >= best.p.luft)) continue;
+      const j = jetztInfo(p, now);
+      if (j && j.offen) best = { p, j };
+    }
+    naechsteOffene = best ? { key, p: best.p, j: best.j } : { key, keine: true };
+  } catch (_) { naechsteOffene = { key, fehler: true }; }
+  if (naechsteOffene.key === naechsteKey()) renderListe();
+}
+function naechsteOffeneHtml(now) {
+  const n = naechsteOffene;
+  if (!n || n.key !== naechsteKey()) { sucheNaechsteOffene(); return ''; }
+  if (n.laeuft || n.fehler) return '';
+  if (n.keine) return `<div class="karte tipp"><b>Auch im Umkreis von 50 km hat gerade keine Apotheke regulär geöffnet.</b>
+    <p>Jetzt hilft nur der Notdienst.</p><div class="knoepfe"><button type="button" data-aktion="notdienst">Notdienst anzeigen</button></div></div>`;
+  // Fahrstrecke ist meist rund 1,4-mal die Luftlinie (grobe Faustregel); Schieber reicht bis 30 km
+  const faktor = S.modus === 'fahrt' ? 1.4 : 1;
+  const km = Math.min(30, Math.max(S.radius + 1, Math.ceil(n.p.luft / 1000 * faktor) + 1));
+  const passt = n.p.luft / 1000 * faktor <= 30;
+  return `<div class="karte tipp"><b>Im Umkreis von ${S.radius} km hat gerade keine Apotheke regulär geöffnet.</b>
+    <p>Nächste geöffnete: <b>${esc(n.p.name)}</b>${n.p.adresse ? ', ' + esc(n.p.adresse) : ''} – ${kmText(n.p.luft)} Luftlinie, ${esc(badge(n.j, now)[1].toLowerCase())}.</p>
+    <div class="knoepfe">${passt ? `<button type="button" data-aktion="umkreis" data-km="${km}">Umkreis auf ${km} km</button>` : ''}<a class="knopf sek" href="${routeLink(n.p)}" target="_blank" rel="noopener">Route</a></div></div>`;
 }
 
 function renderListe() {
@@ -862,10 +909,16 @@ function renderListe() {
   const unbekannt = imUmkreis.filter(p => !p._j);
   const offenJetzt = bekannt.filter(p => p._j.offen).length;
 
+  const nochHeute = bekannt.filter(p => p._t && (heute ? p._t.iv.some(x => x.bis > now) : p._t.offen));
   let treffer = bekannt;
   if (S.filter === 'jetzt') treffer = bekannt.filter(p => p._j.offen);
-  if (S.filter === 'tag') treffer = bekannt.filter(p => p._t && (heute ? p._t.iv.some(x => x.bis > now) : p._t.offen));
-  sortiere(treffer, now, heute, fahrt);
+  if (S.filter === 'tag') treffer = nochHeute;
+  sortiere(treffer, now, heute, fahrt, D0);
+  // Trefferzahl auf jedem Filterknopf: man sieht vor dem Tippen, was übrig bliebe
+  const knopf = v => document.querySelector(`#filter button[data-v="${v}"]`);
+  knopf('alle').textContent = `Alle (${bekannt.length})`;
+  knopf('jetzt').textContent = `Jetzt offen (${offenJetzt})`;
+  knopf('tag').textContent = `${heute ? 'Jetzt oder später' : 'Am ' + WT[D0.getDay()] + ' offen'} (${nochHeute.length})`;
   const rest = S.unbekannt ? sortiere(unbekannt.slice(), now, heute, fahrt) : [];
 
   reiterListe.textContent = `Apotheken (${imUmkreis.length})`;
@@ -881,13 +934,23 @@ function renderListe() {
 
   let html = `<a class="notzeile" href="#" data-aktion="notdienst"><span>🌙 Notdienst-Apotheken heute</span><span>›</span></a>`;
   if (ohFehler) html += `<div class="fehler">Die Auswertung der Öffnungszeiten konnte nicht geladen werden (offline?). Es werden nur die Rohangaben gezeigt.</div>`;
+  if (heute && OH && offenJetzt === 0 && datenIndex) html += naechsteOffeneHtml(now);
   const alle = treffer.concat(rest);
   if (!treffer.length) {
     html += `<div class="leer">${S.filter === 'alle' ? 'Keine Apotheke mit Öffnungszeiten im Umkreis.' : 'Keine passende Apotheke offen.'}<br>Umkreis vergrößern oder den <a href="#" data-aktion="notdienst">Notdienst</a> suchen.</div>`;
   }
+  // Zwischenüberschriften „Jetzt geöffnet (3)“, „Öffnet morgen (12)“ … bei „Empfohlen“ und „Nächste Öffnung“
+  const mitGruppen = S.sort === 'empfohlen' || S.sort === 'naechste';
+  const anzahlJe = {};
+  if (mitGruppen) for (const p of treffer) { const g = gruppe(p, now, heute, D0).text; anzahlJe[g] = (anzahlJe[g] || 0) + 1; }
+  let letzte = null;
   const zeige = alle.slice(0, anzahl);
   zeige.forEach((p, i) => {
     if (i === treffer.length && rest.length) html += `<div class="abschnitt">Ohne Öffnungszeiten-Angabe (${rest.length})</div>`;
+    else if (mitGruppen && i < treffer.length) {
+      const g = gruppe(p, now, heute, D0).text;
+      if (g !== letzte) { html += `<div class="abschnitt">${esc(g)} (${anzahlJe[g]})</div>`; letzte = g; }
+    }
     html += karte(p, now, D0, fahrt);
   });
   if (alle.length > anzahl) html += `<button type="button" class="sek mehr" data-aktion="mehr">Weitere ${Math.min(SEITE, alle.length - anzahl)} anzeigen (${alle.length - anzahl} übrig)</button>`;
@@ -1082,6 +1145,7 @@ document.addEventListener('click', e => {
   const was = a.dataset.aktion;
   if (was === 'neu') { e.preventDefault(); laden(true); }
   else if (was === 'gps-neu') { holeStandort(); }
+  else if (was === 'umkreis') { S.radius = +a.dataset.km; anzahl = SEITE; speichereEinst(); renderEinst(); laden(); }
   else if (was === 'hilfe-zu') { $('#hilfe').innerHTML = ''; }
   else if (was === 'hilfe-auf') { e.preventDefault(); if (letzteHilfe) zeigeStandortHilfe(letzteHilfe.ohneFrage, letzteHilfe.technik, true); }
   else if (was === 'adresse') { $('#hilfe').innerHTML = ''; const f = $('#adr'); f.focus(); f.select(); }
