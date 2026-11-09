@@ -72,6 +72,12 @@ Der Bezug einer Suche gehört groß und oben auf den Bildschirm: Wo gesucht wird
 sein, nicht als kleine graue Zeile. Umgesetzt ab v1.14 als grüner Kasten „Suche um“ über allen Eingaben
 (Straße groß, PLZ/Ort darunter, Quelle GPS oder Adresse); die Statuszeile nennt den Ort ebenfalls
 („… im Umkreis von 10 km um Wettenberg“). Gilt für alle Apps des Nutzers.
+Zweite Regel (09.11., „völlig gegen die Design-Regeln“): Bedienleisten bleiben in **einer** Zeile und springen
+nicht, wenn sich Zahlen ändern; nichts wird abgeschnitten. Umgesetzt ab v1.18: Filter als dreigeteilte Leiste
+(`.filter3`, gleich breite Felder, Zahl klein darunter, `tabular-nums`, feste Höhe 52 px), Beschriftungen gekürzt
+(„Noch heute“, „Di offen“), auf schmalen Geräten (≤ 380 px) 13,5 px Schrift; Tagesauswahl „Morgen 10.11.“.
+Geprüft auf iPhone SE und iPhone 14 mit zwei- und dreistelligen Zahlen. Offene Apotheken: grüne Klammer links
+und rechts (Wunsch 09.11.).
 
 ## Startverhalten (ab v1.6, Wunsch des Nutzers 08.11.)
 

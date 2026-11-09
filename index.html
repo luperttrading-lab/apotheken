@@ -80,10 +80,17 @@ input[type=range] { width: 100%; margin: 10px 0 2px; accent-color: var(--gruen);
 .zwei { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 8px; }
 .zwei select { width: 100%; padding: 9px 8px; }
 .zwei label { display: flex; flex-direction: column; font-size: 13px; color: var(--leise); gap: 4px; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.chips button { background: var(--bg); color: var(--text); border: 1px solid var(--linie); padding: 7px 12px; font-size: 15px; border-radius: 999px; }
-.chips button.an { background: var(--gruen); border-color: var(--gruen); color: #fff; }
-@media (prefers-color-scheme: dark) { .chips button.an { color: #06240e; } }
+/* Filter: immer eine Zeile, drei gleich breite Felder; die Zahl steht klein darunter und verschiebt nichts */
+.filter3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; margin-top: 10px;
+  background: var(--bg); border: 1px solid var(--linie); border-radius: 12px; padding: 3px; }
+.filter3 button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  background: none; color: var(--text); padding: 6px 2px; border-radius: 9px; min-width: 0; height: 52px; }
+.filter3 .t { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.filter3 .n { font-size: 12px; color: var(--leise); font-variant-numeric: tabular-nums; line-height: 1.1; min-height: 1.1em; }
+.filter3 button.an { background: var(--gruen); color: #fff; }
+.filter3 button.an .n { color: rgba(255,255,255,.85); }
+@media (prefers-color-scheme: dark) { .filter3 button.an { color: #06240e; } .filter3 button.an .n { color: #06240e; } }
+@media (max-width: 380px) { .filter3 .t { font-size: 13.5px; } }   /* iPhone SE & Co.: Beschriftung passt ohne Abschneiden */
 .haken { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; color: var(--leise); }
 .haken input { width: 18px; height: 18px; accent-color: var(--gruen); }
 .reiter { display: flex; gap: 6px; margin: 14px 0 6px; }
@@ -102,7 +109,7 @@ input[type=range] { width: 100%; margin: 10px 0 2px; accent-color: var(--gruen);
 }
 .apo { background: var(--karte); border: 1px solid var(--linie); border-radius: 16px; padding: 12px; margin: 8px 0; }
 .apo.zu { opacity: .78; }
-.apo.offen { border-left: 5px solid var(--gruen); }
+.apo.offen { border-left: 5px solid var(--gruen); border-right: 5px solid var(--gruen); }
 .tipp { background: var(--gelb-hell); border-color: transparent; }
 .tipp p { margin: 6px 0; font-size: 15px; }
 .tipp .knoepfe { display: flex; gap: 8px; margin-top: 8px; }
@@ -220,10 +227,10 @@ footer a { color: var(--leise); }
         </select>
       </label>
     </div>
-    <div class="chips" id="filter">
-      <button type="button" data-v="alle">Alle</button>
-      <button type="button" data-v="jetzt">Jetzt offen</button>
-      <button type="button" data-v="tag" id="filter-tag">Jetzt oder später</button>
+    <div class="filter3" id="filter">
+      <button type="button" data-v="alle"><span class="t">Alle</span><span class="n" id="n-alle"></span></button>
+      <button type="button" data-v="jetzt"><span class="t">Jetzt offen</span><span class="n" id="n-jetzt"></span></button>
+      <button type="button" data-v="tag"><span class="t" id="filter-tag">Noch heute</span><span class="n" id="n-tag"></span></button>
     </div>
     <label class="haken"><input type="checkbox" id="unbekannt"> Auch Apotheken ohne Öffnungszeiten zeigen</label>
   </section>
@@ -247,7 +254,7 @@ footer a { color: var(--leise); }
 
 <script>
 'use strict';
-const APP_VERSION = '1.17';
+const APP_VERSION = '1.18';
 
 // ---------- Konstanten ----------
 const OH_URL = 'https://cdn.jsdelivr.net/npm/opening_hours@3.15.0/+esm';
@@ -715,11 +722,12 @@ function renderEinst() {
   const now = new Date(), heute = tagAnfang(now), sel = $('#tag');
   sel.innerHTML = Array.from({ length: 7 }, (_, i) => {
     const d = plusTage(heute, i);
+    // kurz halten, damit nichts abgeschnitten wird: „Heute 9.11.“, „Morgen 10.11.“, „Mi 11.11.“
     const name = i === 0 ? 'Heute' : i === 1 ? 'Morgen' : WT[d.getDay()];
-    return `<option value="${i}">${name} (${datumKurz(d)})</option>`;
+    return `<option value="${i}">${name} ${d.getDate()}.${d.getMonth() + 1}.</option>`;
   }).join('');
   sel.value = S.tagOffset;
-  $('#filter-tag').textContent = S.tagOffset === 0 ? 'Jetzt oder später' : 'Am ' + WT[plusTage(heute, S.tagOffset).getDay()] + ' offen';
+  $('#filter-tag').textContent = S.tagOffset === 0 ? 'Noch heute' : WT[plusTage(heute, S.tagOffset).getDay()] + ' offen';
   // Groß oben: für welchen Ort gesucht wird (Wunsch 08.11.: muss auf einen Blick erkennbar sein)
   const ortEl = $('#ort');
   ortEl.classList.toggle('leer', !S.ort);
@@ -915,10 +923,9 @@ function renderListe() {
   if (S.filter === 'tag') treffer = nochHeute;
   sortiere(treffer, now, heute, fahrt, D0);
   // Trefferzahl auf jedem Filterknopf: man sieht vor dem Tippen, was übrig bliebe
-  const knopf = v => document.querySelector(`#filter button[data-v="${v}"]`);
-  knopf('alle').textContent = `Alle (${bekannt.length})`;
-  knopf('jetzt').textContent = `Jetzt offen (${offenJetzt})`;
-  knopf('tag').textContent = `${heute ? 'Jetzt oder später' : 'Am ' + WT[D0.getDay()] + ' offen'} (${nochHeute.length})`;
+  $('#n-alle').textContent = bekannt.length;
+  $('#n-jetzt').textContent = offenJetzt;
+  $('#n-tag').textContent = nochHeute.length;
   const rest = S.unbekannt ? sortiere(unbekannt.slice(), now, heute, fahrt) : [];
 
   reiterListe.textContent = `Apotheken (${imUmkreis.length})`;
